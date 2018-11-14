@@ -1,0 +1,18 @@
+[package]
+name = "ruspt"
+version = "0.1.0"
+authors = ["Eric.Lauffenburger"]
+
+[dependencies]
+
+[lib]
+name = "rusptlib"
+path = "src/lib/mod.rs"
+
+[[bin]]
+name = "ruspt"
+path = "src/bin/main.rs"
+
+[features]
+default = []
+debug = []
