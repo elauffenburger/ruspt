@@ -1,17 +1,19 @@
 pub mod core;
 pub mod display;
+pub mod exec;
 pub mod parse;
 pub mod util;
 
 pub use core::*;
 pub use display::*;
+pub use exec::*;
 pub use parse::*;
 pub use util::*;
 
 #[cfg(test)]
 mod test {
     use super::core::{LispCell, LispProgram};
-    use super::{parse, print};
+    use super::{exec, new_env, parse, print};
 
     #[test]
     fn basic_parsing_and_printing() {
@@ -78,6 +80,30 @@ mod test {
         };
 
         assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
+    }
+
+    #[test]
+    fn basic_adding() {
+        let program_str = "(+ 1 2)".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(result, make_atom("3"));
+    }
+
+    #[test]
+    fn basic_adding_2() {
+        let program_str = "(+ (+ 1 2) (+ 2 2))".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(result, make_atom("7"));
     }
 
     fn make_atom(name: &'static str) -> LispCell {

@@ -15,4 +15,5 @@ path = "src/bin/main.rs"
 
 [features]
 default = []
-debug = []
+parse_debug = []
+exec_debug = []

@@ -1,14 +1,6 @@
 use core::*;
 use util::*;
 
-#[derive(Debug, Clone)]
-enum ParseMode {
-    Normal,
-    InString,
-    InFunc,
-    InList,
-}
-
 pub fn parse(mut program: String) -> LispProgram {
     let mut trimmed_program = program.trim().to_string();
     log(|| println!("program: {}", &trimmed_program));
@@ -37,11 +29,6 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
     log(|| println!("{}results: {:?}", tab_to_depth(depth), &results));
 
     if text.is_empty() {
-        // let contents = results.clone();
-        // results.push(LispCell::List {
-        //     contents: contents,
-        // });
-
         return;
     }
 
@@ -123,6 +110,15 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             // ...either way, we just continue
             parse_rec(text, greedy, list_stack, pending_word, results, depth)
         }
+    }
+}
+
+pub fn log<F>(logFn: F)
+where
+    F: FnOnce(),
+{
+    if cfg!(feature = "parse_debug") {
+        logFn();
     }
 }
 
