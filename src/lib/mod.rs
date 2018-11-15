@@ -28,21 +28,21 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Box::new(LispCell::Func {
-                operator: Box::new(make_atom("print")),
-                operands: vec![LispCell::Func {
-                    operator: Box::new(make_atom("concat")),
-                    operands: vec![
-                        LispCell::Func {
-                            operator: Box::new(make_atom("+")),
-                            operands: vec![make_atom("1"), make_atom("2")],
-                        },
-                        LispCell::Func {
-                            operator: Box::new(make_atom("-")),
-                            operands: vec![make_atom("3"), make_atom("5")],
-                        },
-                    ],
-                }],
+            entry: Some(Box::new(LispCell::List {
+                contents: vec![
+                    make_atom("print"),
+                    LispCell::List {
+                        contents: vec![
+                            make_atom("concat"),
+                            LispCell::List {
+                                contents: vec![make_atom("+"), make_atom("1"), make_atom("2")],
+                            },
+                            LispCell::List {
+                                contents: vec![make_atom("-"), make_atom("3"), make_atom("5")],
+                            },
+                        ],
+                    },
+                ],
             })),
         };
 
@@ -56,25 +56,22 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Box::new(LispCell::Func {
-                operator: Box::new(make_atom("print")),
-                operands: vec![
-                    LispCell::Func {
-                        operator: Box::new(make_atom("+")),
-                        operands: vec![make_atom("1"), make_atom("2")],
-                    },
+            entry: Some(Box::new(LispCell::List {
+                contents: vec![
+                    make_atom("print"),
                     LispCell::List {
+                        contents: vec![make_atom("+"), make_atom("1"), make_atom("2")],
+                    },
+                    LispCell::Quoted(Box::new(LispCell::List {
                         contents: vec![
                             make_atom("1"),
-                            LispCell::Func{
-                                operator: Box::new(make_atom("+")),
-                                operands: vec![make_atom("1"), make_atom("2")]
-                            }
-                        ]
-                    },
-                    LispCell::Func {
-                        operator: Box::new(make_atom("-")),
-                        operands: vec![make_atom("3"), make_atom("5")],
+                            LispCell::List {
+                                contents: { vec![make_atom("+"), make_atom("1"), make_atom("2")] },
+                            },
+                        ],
+                    })),
+                    LispCell::List {
+                        contents: vec![make_atom("-"), make_atom("3"), make_atom("5")],
                     },
                 ],
             })),

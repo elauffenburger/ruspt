@@ -1,8 +1,8 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LispCell {
     Atom(String),
+    Quoted(Box<LispCell>),
     List { contents: Vec<LispCell> },
-    Func { operator: Box<LispCell>, operands: Vec<LispCell> },
 }
 
 #[derive(Debug, PartialEq)]

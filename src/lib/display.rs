@@ -32,19 +32,7 @@ fn print_rec(node: &LispCell, result: &mut String) {
             }
 
             result.push(')');
-        }
-        LispCell::Func { operator, operands } => {
-            result.push('(');
-
-            print_rec(operator, result);
-
-            for ref operand in operands {
-                result.push(' ');
-
-                print_rec(operand, result);
-            }
-
-            result.push(')');
-        }
+        },
+        _ => panic!("Unsupported LispCell type")
     }
 }

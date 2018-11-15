@@ -22,10 +22,10 @@ fn parse_init(program: &mut String) -> LispCell {
     let mut sanitized_program = program.replace("(", " ( ").replace(")", " ) ");
     log(|| println!("sanitized_program: {:?}", &sanitized_program));
 
-    return parse_rec(&mut sanitized_program, ParseMode::Normal, &mut vec![], &mut String::new(), vec![]);
+    return parse_rec(&mut sanitized_program, ParseMode::Normal, &mut vec![], &mut String::new(), &mut vec![]);
 }
 
-fn parse_rec(text: &mut String, mode: ParseMode, list_stack: &mut Vec<char>, pending_word: &mut String, mut results: Vec<LispCell>) -> LispCell {
+fn parse_rec(text: &mut String, mode: ParseMode, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<LispCell>) -> LispCell {
     log(|| println!("mode: {:?}", mode));
 
     if text.is_empty() {
@@ -54,7 +54,13 @@ fn parse_rec(text: &mut String, mode: ParseMode, list_stack: &mut Vec<char>, pen
         '\'' => {
             log(|| println!("in '"));
 
-            parse_rec(text, ParseMode::InList, list_stack, pending_word, results)
+            let quoted = parse_rec(text, ParseMode::InList, list_stack, pending_word, results);
+
+            println!("to quote: {:?}", &quoted);
+
+            results.push(LispCell::Quoted(Box::new(quoted)));
+
+            parse_rec(text, mode, list_stack, &mut String::new(), results)
         }
         '(' => {
             log(|| println!("in ("));
@@ -63,7 +69,7 @@ fn parse_rec(text: &mut String, mode: ParseMode, list_stack: &mut Vec<char>, pen
             list_stack.push('(');
 
             // Get the contents of the list
-            let mut list = parse_rec(text, ParseMode::InFunc, list_stack, &mut String::new(), vec![]);
+            let mut list = parse_rec(text, ParseMode::InFunc, list_stack, &mut String::new(), &mut vec![]);
 
             results.push(list);
 
@@ -88,11 +94,7 @@ fn parse_rec(text: &mut String, mode: ParseMode, list_stack: &mut Vec<char>, pen
             match results.as_slice() {
                 [] => LispCell::List { contents: vec![] },
                 _ => match mode {
-                    ParseMode::InFunc => {
-                        let operator = results.remove(0);
-                        LispCell::Func { operator: Box::new(operator), operands: results }
-                    }
-                    ParseMode::InList => LispCell::List { contents: results },
+                    ParseMode::Normal | ParseMode::InList | ParseMode::InFunc => LispCell::List { contents: results.clone() },
                     _ => panic!("Unsupported eval mode!"),
                 },
             }
