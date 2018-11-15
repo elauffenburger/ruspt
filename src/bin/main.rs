@@ -1,7 +1,7 @@
 extern crate rusptlib;
 
 use std::io::{self, Read, Write};
-use rusptlib::{parse, exec};
+use rusptlib::{parse, exec_prog};
 
 fn main() {
     loop {
@@ -12,7 +12,7 @@ fn main() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         let program = parse(buffer);
-        let result = exec(rusptlib::new_env(), program);
+        let result = exec_prog(rusptlib::new_env(), program);
 
         println!("{:?}", result);
     }
