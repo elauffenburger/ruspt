@@ -20,7 +20,8 @@ fn parse_init(program: &mut String) -> LispCell {
     let mut results = vec![];
     parse_rec(&mut sanitized_program, true, &mut vec![], &mut String::new(), &mut results, 0);
 
-    println!("results: {:?}", &results);
+
+    log(|| println!("results: {:?}", &results));
 
     return results.pop().unwrap();
 }
@@ -44,9 +45,13 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             log(|| println!("{}finalizing word: {}", tab_to_depth(depth), &pending_word));
 
             let pending_word_str = pending_word.to_string();
+            let cell = match pending_word_str.parse::<f32>() {
+                Ok(num) => LispCell::Number(num),
+                _ => LispCell::Atom(pending_word_str) 
+            };
 
             // Otherwise, close out this word and add it to the result set
-            results.push(LispCell::Atom(pending_word_str));
+            results.push(cell);
 
             if greedy {
                 // Move onto the next char
@@ -100,7 +105,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
         '"' => {
             // TODO: handle, you know, strings
             panic!("Strings not supported yet!")
-        }
+        } 
         c @ _ => {
             log(|| println!("{}c: {}", tab_to_depth(depth), &c));
 

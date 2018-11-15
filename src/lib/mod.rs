@@ -1,19 +1,19 @@
 pub mod core;
-pub mod display;
 pub mod exec;
 pub mod parse;
+pub mod print;
 pub mod util;
 
 pub use core::*;
-pub use display::*;
 pub use exec::*;
 pub use parse::*;
+pub use print::*;
 pub use util::*;
 
 #[cfg(test)]
 mod test {
     use super::core::{LispCell, LispProgram};
-    use super::{exec, new_env, parse, print};
+    use super::{exec_prog, new_env, parse, print};
 
     #[test]
     fn basic_parsing_and_printing() {
@@ -37,10 +37,10 @@ mod test {
                         contents: vec![
                             make_atom("concat"),
                             LispCell::List {
-                                contents: vec![make_atom("+"), make_atom("1"), make_atom("2")],
+                                contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
                             },
                             LispCell::List {
-                                contents: vec![make_atom("-"), make_atom("3"), make_atom("5")],
+                                contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
                             },
                         ],
                     },
@@ -62,18 +62,18 @@ mod test {
                 contents: vec![
                     make_atom("print"),
                     LispCell::List {
-                        contents: vec![make_atom("+"), make_atom("1"), make_atom("2")],
+                        contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
                     },
                     LispCell::Quoted(Box::new(LispCell::List {
                         contents: vec![
-                            make_atom("1"),
+                            make_num(1f32),
                             LispCell::List {
-                                contents: { vec![make_atom("+"), make_atom("1"), make_atom("2")] },
+                                contents: { vec![make_atom("+"), make_num(1f32), make_num(2f32)] },
                             },
                         ],
                     })),
                     LispCell::List {
-                        contents: vec![make_atom("-"), make_atom("3"), make_atom("5")],
+                        contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
                     },
                 ],
             })),
@@ -88,10 +88,10 @@ mod test {
         let program = parse(program_str);
 
         let env = new_env();
-        let result = exec(env, program);
+        let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_atom("3"));
+        assert_eq!(result, make_num(3f32));
     }
 
     #[test]
@@ -100,10 +100,26 @@ mod test {
         let program = parse(program_str);
 
         let env = new_env();
-        let result = exec(env, program);
+        let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_atom("7"));
+        assert_eq!(result, make_num(7f32));
+    }
+
+    #[test]
+    fn basic_math() {
+        let program_str = "(* (+ (* 1 2 3) (- 2 2 -5) (+ 1 1 2 3) (/ 1 2)) (+ 1 5 6))".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec_prog(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(result, make_num(222f32));
+    }
+
+    fn make_num(num: f32) -> LispCell {
+        LispCell::Number(num)
     }
 
     fn make_atom(name: &'static str) -> LispCell {

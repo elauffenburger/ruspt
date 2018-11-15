@@ -1,22 +1,19 @@
 extern crate rusptlib;
 
-use rusptlib::{parse, print};
-
-static _program: &'static str = "
-    (do (print (+ 1 2) (- 1 2)) (foo bar baz (qux (+ 1 2) (blah) blah)))
-";
+use std::io::{self, Read, Write};
+use rusptlib::{parse, exec};
 
 fn main() {
-    let program = parse(_program.to_string());
-    println!("program: {:?}", &program);
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
 
-    let printed_program = print(&program);
-    println!("printed program: {}", &printed_program);
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).unwrap();
 
-    assert!(
-        program.text == printed_program,
-        "Expected printed program to match original program"
-    );
+        let program = parse(buffer);
+        let result = exec(rusptlib::new_env(), program);
 
-    println!("printed parsed program matches original program!");
+        println!("{:?}", result);
+    }
 }
