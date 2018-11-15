@@ -69,17 +69,26 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
         '\'' => {
             log(|| println!("{}in '", tab_to_depth(depth)));
 
-            panic!("quote not implemented!");
+            let mut to_quote = vec![];
+            parse_rec(text, false, list_stack, &mut String::new(), &mut to_quote, depth);
+
+            log(|| println!("{}to quote: {:?}", tab_to_depth(depth), &to_quote));
+
+            results.push(LispCell::Quoted(Box::new(to_quote.pop().unwrap())));
+
+            if greedy {
+                parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
+            }
         }
         '(' => {
-            log(|| println!("in ("));
+            log(|| println!("{}in (", tab_to_depth(depth)));
 
             list_stack.push('(');
 
             log(|| println!("{}Staring new results stack", tab_to_depth(depth)));
 
             let mut list_contents = vec![];
-            parse_rec(text, greedy, list_stack, &mut String::new(), &mut list_contents, depth + 1);
+            parse_rec(text, true, list_stack, &mut String::new(), &mut list_contents, depth + 1);
 
             log(|| println!("{}Finished results stack: {:?}", tab_to_depth(depth), &list_contents));
 
@@ -118,5 +127,5 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 }
 
 fn tab_to_depth(depth: i32) -> String {
-    format!("({}):{}", depth, "  ".repeat(depth as usize).to_string())
+    format!("({}): {}", depth, "  ".repeat(depth as usize).to_string())
 }
