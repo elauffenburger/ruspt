@@ -38,6 +38,11 @@ pub fn def(env: &mut Environment, args: &Vec<LispCell>) -> LispCell {
     }
 }
 
+pub fn do_fn(env: &mut Environment, args: &Vec<LispCell>) -> LispCell {
+    // Execute each arg in the vec and return the last expr result as the result
+    args.iter().map(|arg| exec(env, arg)).last().unwrap()
+}
+
 fn to_nums<'a>(args: &'a Vec<LispCell>) -> Box<Iterator<Item = f32> + 'a> {
     let map = args.iter().map(|arg| match arg {
         LispCell::Number(num) => *num,

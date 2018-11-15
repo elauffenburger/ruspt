@@ -3,6 +3,7 @@ pub mod exec;
 pub mod parse;
 pub mod print;
 pub mod util;
+mod ops;
 
 pub use core::*;
 pub use exec::*;
@@ -117,7 +118,18 @@ mod test {
 
         assert_eq!(result, make_num(222f32));
     }
-    
+
+    #[test]
+    fn basic_def_and_do() {
+        let program_str = "(do (def x (+ 2 2) (+ x 5)))".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec_prog(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(result, make_num(222f32));
+    }
 
     fn make_num(num: f32) -> LispCell {
         LispCell::Number(num)
