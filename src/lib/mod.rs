@@ -1,9 +1,9 @@
 pub mod core;
 pub mod exec;
+mod ops;
 pub mod parse;
 pub mod print;
 pub mod util;
-mod ops;
 
 pub use core::*;
 pub use exec::*;
@@ -13,6 +13,8 @@ pub use util::*;
 
 #[cfg(test)]
 mod test {
+    use std::rc::Rc;
+
     use super::core::{LispCell, LispProgram};
     use super::{exec_prog, new_env, parse, print};
 
@@ -31,20 +33,20 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Box::new(LispCell::List {
+            entry: Some(Rc::new(LispCell::List {
                 contents: vec![
                     make_atom("print"),
-                    LispCell::List {
+                    Rc::new(LispCell::List {
                         contents: vec![
                             make_atom("concat"),
-                            LispCell::List {
+                            Rc::new(LispCell::List {
                                 contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                            },
-                            LispCell::List {
+                            }),
+                            Rc::new(LispCell::List {
                                 contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                            },
+                            }),
                         ],
-                    },
+                    }),
                 ],
             })),
         };
@@ -59,23 +61,23 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Box::new(LispCell::List {
+            entry: Some(Rc::new(LispCell::List {
                 contents: vec![
                     make_atom("print"),
-                    LispCell::List {
+                    Rc::new(LispCell::List {
                         contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                    },
-                    LispCell::Quoted(Box::new(LispCell::List {
+                    }),
+                    Rc::new(LispCell::Quoted(Rc::new(LispCell::List {
                         contents: vec![
                             make_num(1f32),
-                            LispCell::List {
+                            Rc::new(LispCell::List {
                                 contents: { vec![make_atom("+"), make_num(1f32), make_num(2f32)] },
-                            },
+                            }),
                         ],
-                    })),
-                    LispCell::List {
+                    }))),
+                    Rc::new(LispCell::List {
                         contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                    },
+                    }),
                 ],
             })),
         };
@@ -92,7 +94,7 @@ mod test {
         let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_num(3f32));
+        assert_eq!(*result, *make_num(3f32));
     }
 
     #[test]
@@ -104,7 +106,7 @@ mod test {
         let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_num(7f32));
+        assert_eq!(*result, *make_num(7f32));
     }
 
     #[test]
@@ -116,26 +118,26 @@ mod test {
         let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_num(222f32));
+        assert_eq!(*result, *make_num(222f32));
     }
 
     #[test]
     fn basic_def_and_do() {
-        let program_str = "(do (def x (+ 2 2) (+ x 5)))".to_string();
+        let program_str = "(do (def x (+ 2 2)) (+ x 5))".to_string();
         let program = parse(program_str);
 
         let env = new_env();
         let result = exec_prog(env, program);
         println!("result: {:?}", result);
 
-        assert_eq!(result, make_num(222f32));
+        assert_eq!(*result, *make_num(9f32));
     }
 
-    fn make_num(num: f32) -> LispCell {
-        LispCell::Number(num)
+    fn make_num(num: f32) -> Rc<LispCell> {
+        Rc::new(LispCell::Number(num))
     }
 
-    fn make_atom(name: &'static str) -> LispCell {
-        LispCell::Atom(name.to_string())
+    fn make_atom(name: &'static str) -> Rc<LispCell> {
+        Rc::new(LispCell::Atom(name.to_string()))
     }
 }

@@ -10,16 +10,24 @@ pub enum LispCell {
     Atom(String),
     Number(f32),
     Str(String),
-    Quoted(Box<LispCell>),
+    Quoted(Rc<LispCell>),
     Func(LispFunc),
     List {
-        contents: Vec<LispCell>,
+        contents: Vec<Rc<LispCell>>,
     },
 }
 
 pub struct LispFunc {
     pub name: String,
-    pub func: Rc<Box<LispFn>>,
+    pub func_type: LispFuncType,
+    pub func: Rc<LispFn>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LispFuncType {
+    Macro,
+    SpecialForm,
+    Normal
 }
 
 impl Debug for LispFunc {
@@ -35,55 +43,79 @@ impl PartialEq for LispFunc {
 }
 
 impl Clone for LispFunc {
-    
     fn clone(&self) -> Self {
-        LispFunc{ name: self.name, func: self.func.clone() }
+        LispFunc {
+            name: self.name.clone(),
+            func_type: self.func_type.clone(),
+            func: self.func.clone(),
+        }
     }
 }
 
 #[derive(Debug, PartialEq)]
 pub struct LispProgram {
     pub text: String,
-    pub entry: Option<Box<LispCell>>,
+    pub entry: Option<Rc<LispCell>>,
 }
 
-pub type LispFn = Fn(&mut Environment, &Vec<LispCell>) -> Box<LispCell>;
+pub type LispFn = Fn(&mut Environment, &Vec<Rc<LispCell>>) -> Rc<LispCell>;
 
 pub struct Environment {
-    pub symbols: Rc<RefCell<HashMap<String, Box<LispCell>>>>,
+    pub symbols: HashMap<String, Rc<LispCell>>,
 }
 
 impl Environment {
-    pub fn def<'a>(&mut self, symbol: String, cell: LispCell) {
-        self.symbols.borrow_mut().insert(symbol, Box::new(cell)).unwrap();
+    pub fn def<'a>(&mut self, symbol: String, cell: Rc<LispCell>) {
+        log(|| println!("symbols: {:?}", &self.symbols));
+
+        self.symbols.insert(symbol, cell);
     }
 
-    pub fn find_sym(&self, name: &String) -> Option<&Box<LispCell>> {
-        self.symbols.borrow().get(name)
+    pub fn find_sym(&self, name: &String) -> Option<Rc<LispCell>> {
+        log(|| println!("looking up symbol {}", name));
+
+        match self.symbols.get(name) {
+            Some(sym) => Some(sym.clone()),
+            None => None,
+        }
     }
 }
 
 pub fn new_env() -> Environment {
     Environment {
-        symbols: Rc::new(RefCell::new(make_builtin_symbols())),
+        symbols: make_builtin_symbols(),
     }
 }
 
-fn make_builtin_symbols() -> HashMap<String, Box<LispCell>> {
-    let mut map: HashMap<String, Box<LispCell>> = HashMap::new();
+fn make_builtin_symbols() -> HashMap<String, Rc<LispCell>> {
+    let mut map: HashMap<String, Rc<LispCell>> = HashMap::new();
 
-    add_op("+", Box::new(ops::add), &mut map);
-    add_op("-", Box::new(ops::sub), &mut map);
-    add_op("*", Box::new(ops::mul), &mut map);
-    add_op("/", Box::new(ops::div), &mut map);
-    add_op("def", Box::new(ops::def), &mut map);
-    add_op("do", Box::new(ops::do_fn), &mut map);
+    add_op("+", LispFuncType::Normal, Rc::new(ops::add), &mut map);
+    add_op("-", LispFuncType::Normal, Rc::new(ops::sub), &mut map);
+    add_op("*", LispFuncType::Normal, Rc::new(ops::mul), &mut map);
+    add_op("/", LispFuncType::Normal, Rc::new(ops::div), &mut map);
+    add_op("def", LispFuncType::SpecialForm, Rc::new(ops::def), &mut map);
+    add_op("do", LispFuncType::SpecialForm, Rc::new(ops::do_fn), &mut map);
 
     map
 }
 
+fn add_op(name: &'static str, func_type: LispFuncType, op: Rc<LispFn>, map: &mut HashMap<String, Rc<LispCell>>) {
+    map.insert(
+        name.to_string(),
+        Rc::new(LispCell::Func(LispFunc {
+            name: name.to_string(),
+            func_type: func_type,
+            func: op,
+        })),
+    );
+}
 
-fn add_op(name: &'static str, op: Box<LispFn>, map: &mut HashMap<String, Box<LispCell>>) {
-    let name = name.to_string();
-    map.insert(name, Box::new(LispCell::Func(LispFunc{ name: name, func: Rc::new(op) })));
+pub fn log<F>(logFn: F)
+where
+    F: FnOnce(),
+{
+    if cfg!(feature = "core_debug") {
+        logFn();
+    }
 }
