@@ -10,10 +10,10 @@ pub enum LispCell {
     Atom(String),
     Number(f32),
     Str(String),
-    Quoted(Rc<LispCell>),
+    Quoted(Rc<RefCell<LispCell>>),
     Func(LispFunc),
     List {
-        contents: Vec<Rc<LispCell>>,
+        contents: Vec<Rc<RefCell<LispCell>>>,
     },
 }
 
@@ -55,23 +55,23 @@ impl Clone for LispFunc {
 #[derive(Debug, PartialEq)]
 pub struct LispProgram {
     pub text: String,
-    pub entry: Option<Rc<LispCell>>,
+    pub entry: Option<Rc<RefCell<LispCell>>>,
 }
 
-pub type LispFn = Fn(&mut Environment, &Vec<Rc<LispCell>>) -> Rc<LispCell>;
+pub type LispFn = Fn(&mut Environment, &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>>;
 
 pub struct Environment {
-    pub symbols: HashMap<String, Rc<LispCell>>,
+    pub symbols: HashMap<String, Rc<RefCell<LispCell>>>,
 }
 
 impl Environment {
-    pub fn def<'a>(&mut self, symbol: String, cell: Rc<LispCell>) {
+    pub fn def<'a>(&mut self, symbol: String, cell: Rc<RefCell<LispCell>>) {
         log(|| println!("symbols: {:?}", &self.symbols));
 
         self.symbols.insert(symbol, cell);
     }
 
-    pub fn find_sym(&self, name: &String) -> Option<Rc<LispCell>> {
+    pub fn find_sym(&self, name: &String) -> Option<Rc<RefCell<LispCell>>> {
         log(|| println!("looking up symbol {}", name));
 
         match self.symbols.get(name) {
@@ -87,27 +87,28 @@ pub fn new_env() -> Environment {
     }
 }
 
-fn make_builtin_symbols() -> HashMap<String, Rc<LispCell>> {
-    let mut map: HashMap<String, Rc<LispCell>> = HashMap::new();
+fn make_builtin_symbols() -> HashMap<String, Rc<RefCell<LispCell>>> {
+    let mut map: HashMap<String, Rc<RefCell<LispCell>>> = HashMap::new();
 
     add_op("+", LispFuncType::Normal, Rc::new(ops::add), &mut map);
     add_op("-", LispFuncType::Normal, Rc::new(ops::sub), &mut map);
     add_op("*", LispFuncType::Normal, Rc::new(ops::mul), &mut map);
     add_op("/", LispFuncType::Normal, Rc::new(ops::div), &mut map);
     add_op("def", LispFuncType::SpecialForm, Rc::new(ops::def), &mut map);
-    add_op("do", LispFuncType::SpecialForm, Rc::new(ops::do_fn), &mut map);
+    add_op("do", LispFuncType::SpecialForm, Rc::new(ops::dew), &mut map);
+    add_op("push", LispFuncType::Normal, Rc::new(ops::push), &mut map);
 
     map
 }
 
-fn add_op(name: &'static str, func_type: LispFuncType, op: Rc<LispFn>, map: &mut HashMap<String, Rc<LispCell>>) {
+fn add_op(name: &'static str, func_type: LispFuncType, op: Rc<LispFn>, map: &mut HashMap<String, Rc<RefCell<LispCell>>>) {
     map.insert(
         name.to_string(),
-        Rc::new(LispCell::Func(LispFunc {
+        Rc::new(RefCell::new(LispCell::Func(LispFunc {
             name: name.to_string(),
             func_type: func_type,
             func: op,
-        })),
+        }))),
     );
 }
 

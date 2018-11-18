@@ -13,6 +13,7 @@ pub use util::*;
 
 #[cfg(test)]
 mod test {
+    use std::cell::RefCell;
     use std::rc::Rc;
 
     use super::core::{LispCell, LispProgram};
@@ -33,22 +34,22 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Rc::new(LispCell::List {
+            entry: Some(Rc::new(RefCell::new(LispCell::List {
                 contents: vec![
                     make_atom("print"),
-                    Rc::new(LispCell::List {
+                    Rc::new(RefCell::new(LispCell::List {
                         contents: vec![
                             make_atom("concat"),
-                            Rc::new(LispCell::List {
+                            Rc::new(RefCell::new(LispCell::List {
                                 contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                            }),
-                            Rc::new(LispCell::List {
+                            })),
+                            Rc::new(RefCell::new(LispCell::List {
                                 contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                            }),
+                            })),
                         ],
-                    }),
+                    })),
                 ],
-            })),
+            }))),
         };
 
         assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
@@ -61,25 +62,25 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Rc::new(LispCell::List {
+            entry: Some(Rc::new(RefCell::new(LispCell::List {
                 contents: vec![
                     make_atom("print"),
-                    Rc::new(LispCell::List {
+                    Rc::new(RefCell::new(LispCell::List {
                         contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                    }),
-                    Rc::new(LispCell::Quoted(Rc::new(LispCell::List {
+                    })),
+                    Rc::new(RefCell::new(LispCell::Quoted(Rc::new(RefCell::new(LispCell::List {
                         contents: vec![
                             make_num(1f32),
-                            Rc::new(LispCell::List {
+                            Rc::new(RefCell::new(LispCell::List {
                                 contents: { vec![make_atom("+"), make_num(1f32), make_num(2f32)] },
-                            }),
+                            })),
                         ],
-                    }))),
-                    Rc::new(LispCell::List {
+                    }))))),
+                    Rc::new(RefCell::new(LispCell::List {
                         contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                    }),
+                    })),
                 ],
-            })),
+            }))),
         };
 
         assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
@@ -133,11 +134,29 @@ mod test {
         assert_eq!(*result, *make_num(9f32));
     }
 
-    fn make_num(num: f32) -> Rc<LispCell> {
-        Rc::new(LispCell::Number(num))
+    #[test]
+    fn basic_def_and_push() {
+        let program_str = "(do (def x '(1 2 3)) (push '4 x) (push '5 x) x)".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec_prog(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(*result, *make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32), make_num(4f32), make_num(5f32)]));
     }
 
-    fn make_atom(name: &'static str) -> Rc<LispCell> {
-        Rc::new(LispCell::Atom(name.to_string()))
+    fn make_num(num: f32) -> Rc<RefCell<LispCell>> {
+        Rc::new(RefCell::new(LispCell::Number(num)))
+    }
+
+    fn make_atom(name: &'static str) -> Rc<RefCell<LispCell>> {
+        Rc::new(RefCell::new(LispCell::Atom(name.to_string())))
+    }
+
+    fn make_list(list: Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+        Rc::new(RefCell::new(LispCell::List {
+            contents: list,
+        }))
     }
 }

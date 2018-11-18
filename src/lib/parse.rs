@@ -1,6 +1,7 @@
 use core::*;
-use util::*;
+
 use std::rc::Rc;
+use std::cell::RefCell;
 
 pub fn parse(mut program: String) -> LispProgram {
     let mut trimmed_program = program.trim().to_string();
@@ -14,7 +15,7 @@ pub fn parse(mut program: String) -> LispProgram {
     }
 }
 
-fn parse_init(program: &mut String) -> Rc<LispCell> {
+fn parse_init(program: &mut String) -> Rc<RefCell<LispCell>> {
     let mut sanitized_program = program.replace("(", " ( ").replace(")", " ) ");
     log(|| println!("sanitized_program: {:?}", &sanitized_program));
 
@@ -26,7 +27,7 @@ fn parse_init(program: &mut String) -> Rc<LispCell> {
     return results.pop().unwrap();
 }
 
-fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<Rc<LispCell>>, depth: i32) {
+fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<Rc<RefCell<LispCell>>>, depth: i32) {
     log(|| println!("{}results: {:?}", tab_to_depth(depth), &results));
 
     if text.is_empty() {
@@ -51,7 +52,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             };
 
             // Otherwise, close out this word and add it to the result set
-            results.push(Rc::new(cell));
+            results.push(Rc::new(RefCell::new(cell)));
 
             if greedy {
                 // Move onto the next char
@@ -66,7 +67,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 
             log(|| println!("{}to quote: {:?}", tab_to_depth(depth), &to_quote));
 
-            results.push(Rc::new(LispCell::Quoted(to_quote.pop().unwrap())));
+            results.push(Rc::new(RefCell::new(LispCell::Quoted(to_quote.pop().unwrap()))));
 
             if greedy {
                 parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
@@ -84,9 +85,9 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 
             log(|| println!("{}Finished results stack: {:?}", tab_to_depth(depth), &list_contents));
 
-            results.push(Rc::new(LispCell::List {
+            results.push(Rc::new(RefCell::new(LispCell::List {
                 contents: list_contents,
-            }));
+            })));
 
             if greedy {
                 parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
