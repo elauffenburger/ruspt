@@ -24,7 +24,11 @@ fn exec_rec(env: &mut Environment, cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<Li
                 None => panic!("No symbol found with name {}", symbol),
             }
         }
-        LispCell::Quoted(ref quoted) => quoted.clone(),
+        LispCell::Quoted(ref quoted) => {
+            log(|| println!("Unquoting {:?}", quoted));
+
+            quoted.clone()
+        },
         LispCell::Number(_) => cell.clone(),
         LispCell::List {
             ref contents,

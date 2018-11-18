@@ -13,6 +13,7 @@ pub use util::*;
 
 #[cfg(test)]
 mod test {
+    use print::print_cell;
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -123,6 +124,18 @@ mod test {
     }
 
     #[test]
+    fn basic_list() {
+        let program_str = "(list 1 2 3)".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec_prog(env, program);
+        println!("result: {:?}", result);
+
+        assert_eq!(*result, *make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32)]));
+    }
+
+    #[test]
     fn basic_def_and_do() {
         let program_str = "(do (def x (+ 2 2)) (+ x 5))".to_string();
         let program = parse(program_str);
@@ -136,7 +149,7 @@ mod test {
 
     #[test]
     fn basic_def_and_push() {
-        let program_str = "(do (def x '(1 2 3)) (push '4 x) (push '5 x) x)".to_string();
+        let program_str = "(do (def x (list 1 2 3)) (push '4 x) (push '5 x) x)".to_string();
         let program = parse(program_str);
 
         let env = new_env();
@@ -144,6 +157,19 @@ mod test {
         println!("result: {:?}", result);
 
         assert_eq!(*result, *make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32), make_num(4f32), make_num(5f32)]));
+    }
+
+    #[test]
+    fn car() {
+        let program_str = "(do (def x (list (list 3 4 5) 1 2)) (push '6 (car x)) x)".to_string();
+        let program = parse(program_str);
+
+        let env = new_env();
+        let result = exec_prog(env, program);
+        println!("result: {:?}", result);
+        println!("\npretty result: {:?}", print_cell(result.clone()));
+
+        assert_eq!(*result, *make_list(vec![make_list(vec![make_num(3f32), make_num(4f32), make_num(5f32), make_num(6f32)]), make_num(1f32), make_num(2f32)]));
     }
 
     fn make_num(num: f32) -> Rc<RefCell<LispCell>> {

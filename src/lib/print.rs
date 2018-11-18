@@ -1,22 +1,28 @@
 use core::*;
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
 pub fn print(program: &LispProgram) -> String {
     match program.entry {
         None => "".to_string(),
-        Some(ref entry) => {
-            let mut result = String::new();
-            print_rec(entry.clone(), &mut result);
-
-            return result;
-        }
+        Some(ref entry) => print_cell(entry.clone()),
     }
+}
+
+pub fn print_cell(cell: Rc<RefCell<LispCell>>) -> String {
+    let mut result = String::new();
+    print_rec(cell, &mut result);
+
+    result
 }
 
 fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
     match *node.borrow() {
+        LispCell::Quoted(ref quoted) => {
+            print_rec(quoted.clone(), result);
+            *result = format!("'{}", result);
+        }
         LispCell::Number(num) => result.push_str(num.to_string().as_str()),
         LispCell::Atom(ref atom) => result.push_str(atom.as_str()),
         LispCell::List {
@@ -37,6 +43,6 @@ fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
 
             result.push(')');
         }
-        _ => panic!("Unsupported LispCell type"),
+        ref c @ _ => panic!("Unsupported LispCell type: {:?}", c),
     }
 }

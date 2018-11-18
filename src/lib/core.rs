@@ -94,9 +94,11 @@ fn make_builtin_symbols() -> HashMap<String, Rc<RefCell<LispCell>>> {
     add_op("-", LispFuncType::Normal, Rc::new(ops::sub), &mut map);
     add_op("*", LispFuncType::Normal, Rc::new(ops::mul), &mut map);
     add_op("/", LispFuncType::Normal, Rc::new(ops::div), &mut map);
+    add_op("list", LispFuncType::Normal, Rc::new(ops::list), &mut map);
     add_op("def", LispFuncType::SpecialForm, Rc::new(ops::def), &mut map);
     add_op("do", LispFuncType::SpecialForm, Rc::new(ops::dew), &mut map);
     add_op("push", LispFuncType::Normal, Rc::new(ops::push), &mut map);
+    add_op("car", LispFuncType::Normal, Rc::new(ops::car), &mut map);
 
     map
 }
