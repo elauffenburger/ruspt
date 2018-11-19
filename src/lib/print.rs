@@ -10,14 +10,14 @@ pub fn print(program: &LispProgram) -> String {
     }
 }
 
-pub fn print_cell(cell: Rc<RefCell<LispCell>>) -> String {
+pub fn print_cell(cell: LispCellRef) -> String {
     let mut result = String::new();
     print_rec(cell, &mut result);
 
     result
 }
 
-fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
+fn print_rec(node: LispCellRef, result: &mut String) {
     match *node.borrow() {
         LispCell::Quoted(ref quoted) => {
             print_rec(quoted.clone(), result);
@@ -31,16 +31,20 @@ fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
             result.push('(');
 
             let borrowed_contents = contents.borrow();
+            let mut iter = borrowed_contents.iter().peekable();
 
-            let n = borrowed_contents.len();
-            for i in 0..n {
-                let cell = &borrowed_contents[i];
+            loop {
+                match iter.next() {
+                    Some(cell) => {
+                        print_rec(cell.clone(), result);
 
-                print_rec(cell.clone(), result);
-
-                if i != n - 1 {
-                    result.push(' ');
-                }
+                        match iter.peek() {
+                            Some(_) => result.push(' '),
+                            None => {}
+                        };
+                    }
+                    None => break,
+                };
             }
 
             result.push(')');

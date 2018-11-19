@@ -1,20 +1,21 @@
 use super::core::*;
+use super::util;
 
-use std::rc::Rc;
 use std::cell::RefCell;
+use std::rc::Rc;
 
-pub fn exec_prog(mut env: Environment, program: LispProgram) -> Rc<RefCell<LispCell>> {
+pub fn exec_prog(mut env: Environment, program: LispProgram) -> LispCellRef {
     match program.entry {
         Some(e) => exec_rec(&mut env, e),
         _ => panic!("No entry found for program!"),
     }
 }
 
-pub fn exec(env: &mut Environment, cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<LispCell>> {
+pub fn exec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
     exec_rec(env, cell)
 }
 
-fn exec_rec(env: &mut Environment, cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<LispCell>> {
+fn exec_rec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
     match *cell.borrow() {
         LispCell::Atom(ref symbol) => {
             let maybe_sym = env.find_sym(symbol);
@@ -28,23 +29,27 @@ fn exec_rec(env: &mut Environment, cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<Li
             log(|| println!("Unquoting {:?}", quoted));
 
             quoted.clone()
-        },
+        }
         LispCell::Number(_) => cell.clone(),
         LispCell::List {
             ref contents,
         } => {
-            let borrowed_contents = contents.borrow();
-            let (x, xs) = borrowed_contents.split_at(1);
+            let mut borrowed_contents = contents.borrow_mut();
 
-            let function = exec_rec(env, x.get(0).unwrap().clone());
+            unsafe {
+                let (x, xs) = util::split_at_head(&mut borrowed_contents);
 
-            call_fn(env, function, xs)
+                let function = exec_rec(env, x.unwrap().clone());
+                let args: Vec<LispCellRef> = xs.iter().map(|cell| cell.clone()).collect();
+
+                call_fn(env, function, &args)
+            }
         }
         ref t @ _ => panic!("LispCell type {:?} not implemented in exec!", t),
     }
 }
 
-fn call_fn(env: &mut Environment, function_cell: Rc<RefCell<LispCell>>, args: &[Rc<RefCell<LispCell>>]) -> Rc<RefCell<LispCell>> {
+fn call_fn(env: &mut Environment, function_cell: LispCellRef, args: &[LispCellRef]) -> LispCellRef {
     match *function_cell.borrow() {
         LispCell::Func(ref function) => {
             let args = match function.func_type {

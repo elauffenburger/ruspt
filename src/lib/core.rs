@@ -1,20 +1,46 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::collections::LinkedList;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
 use super::ops;
+
+pub type LispCellRef = Rc<RefCell<LispCell>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LispCell {
     Atom(String),
     Number(f32),
     Str(String),
-    Quoted(Rc<RefCell<LispCell>>),
+    Quoted(LispCellRef),
     Func(LispFunc),
     List {
-        contents: Rc<RefCell<Vec<Rc<RefCell<LispCell>>>>>,
+        contents: Rc<RefCell<LinkedList<LispCellRef>>>,
     },
+}
+
+impl LispCell {
+    pub fn new_list(cells: &[LispCellRef]) -> LispCellRef {
+        let mut list = LinkedList::new();
+        cells.iter().for_each(|cell| {
+            list.push_back(cell.clone());
+        });
+
+        Self::make_list(list)
+    }
+
+    pub fn make_list(list: LinkedList<LispCellRef>) -> LispCellRef {
+        let cell = LispCell::List {
+            contents: Rc::new(RefCell::new(list)),
+        };
+
+        cell.to_ref()
+    }
+
+    pub fn to_ref(self) -> LispCellRef {
+        Rc::new(RefCell::new(self))
+    }
 }
 
 pub struct LispFunc {
@@ -27,7 +53,7 @@ pub struct LispFunc {
 pub enum LispFuncType {
     Macro,
     SpecialForm,
-    Normal
+    Normal,
 }
 
 impl Debug for LispFunc {

@@ -2,37 +2,36 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::core::log;
-use super::{exec, Environment, LispCell};
+use super::util;
+use super::{exec, Environment, LispCell, LispCellRef};
 
-pub fn add(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn add(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
 }
 
-pub fn sub(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn sub(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
-    Rc::new(RefCell::new(LispCell::Number(nums.fold(first, |acc, val| acc - val))))
+    LispCell::Number(nums.fold(first, |acc, val| acc - val)).to_ref()
 }
 
-pub fn mul(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
-    Rc::new(RefCell::new(LispCell::Number(to_nums(args).product())))
+pub fn mul(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    LispCell::Number(to_nums(args).product()).to_ref()
 }
 
-pub fn div(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn div(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
-    Rc::new(RefCell::new(LispCell::Number(nums.fold(first, |acc, val| acc / val))))
+    LispCell::Number(nums.fold(first, |acc, val| acc / val)).to_ref()
 }
 
-pub fn list(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
-    Rc::new(RefCell::new(LispCell::List {
-        contents: Rc::new(RefCell::new(args.clone())),
-    }))
+pub fn list(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    LispCell::new_list(&args.clone())
 }
 
-pub fn def(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut iter = args.iter();
 
     let cell = iter.next().unwrap();
@@ -52,18 +51,18 @@ pub fn def(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCe
     }
 }
 
-pub fn dew(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn dew(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     // Execute each arg in the vec and return the last expr result as the result
     args.iter().map(|arg| exec(env, arg.clone())).last().unwrap()
 }
 
-pub fn push(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [el, list] => match *list.borrow_mut() {
             LispCell::List {
                 ref contents,
             } => {
-                contents.borrow_mut().push(el.clone());
+                contents.borrow_mut().push_back(el.clone());
 
                 list.clone()
             }
@@ -73,12 +72,12 @@ pub fn push(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefC
     }
 }
 
-pub fn car(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list] => match *list.borrow() {
             LispCell::List {
                 ref contents,
-            } => match contents.borrow().first() {
+            } => match contents.borrow().front() {
                 Some(first) => first.clone(),
                 None => lisp_null(),
             },
@@ -88,24 +87,25 @@ pub fn car(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCe
     }
 }
 
-pub fn cdr(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
+pub fn cdr(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list] => match *list.borrow() {
             LispCell::List {
                 ref contents,
             } => {
-                let borrowed_contents = contents.borrow_mut();
-                let (_, rest) = (borrowed_contents).split_at(1);
-
+                let mut borrowed_contents = contents.borrow_mut();
                 println!("cdr'ing: {:?}", &borrowed_contents);
-                rest.to_vec().push(Rc::new(RefCell::new(LispCell::Number(122f32))));
-                println!("rest: {:?}", &rest);
 
-                match rest.len() {
-                    0 => lisp_null(),
-                    _ => Rc::new(RefCell::new(LispCell::List {
-                        contents: Rc::new(RefCell::new(rest.to_vec())),
-                    })),
+                unsafe {
+                    let (_, rest) = util::split_at_head(&mut borrowed_contents);
+
+                    println!("borrowed_contents after split: {:?}", &borrowed_contents);
+                    println!("rest: {:?}", &rest);
+
+                    match rest.len() {
+                        0 => lisp_null(),
+                        _ => LispCell::make_list(rest),
+                    }
                 }
             }
             ref l @ _ => panic!("Arg passed to push was not a list: {:?}", l),
@@ -114,7 +114,7 @@ pub fn cdr(env: &mut Environment, args: &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCe
     }
 }
 
-fn to_nums<'a>(args: &'a Vec<Rc<RefCell<LispCell>>>) -> Box<Iterator<Item = f32> + 'a> {
+fn to_nums<'a>(args: &'a Vec<LispCellRef>) -> Box<Iterator<Item = f32> + 'a> {
     let map = args.iter().map(|arg| match *arg.borrow() {
         LispCell::Number(num) => num,
         ref c @ _ => panic!("Non-number cell handed to numeric operator: {:?}", c),
@@ -123,8 +123,6 @@ fn to_nums<'a>(args: &'a Vec<Rc<RefCell<LispCell>>>) -> Box<Iterator<Item = f32>
     Box::new(map)
 }
 
-fn lisp_null() -> Rc<RefCell<LispCell>> {
-    Rc::new(RefCell::new(LispCell::List {
-        contents: Rc::new(RefCell::new(vec![])),
-    }))
+fn lisp_null() -> LispCellRef {
+    LispCell::new_list(&vec![])
 }

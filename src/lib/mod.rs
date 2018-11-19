@@ -17,7 +17,7 @@ mod test {
     use std::cell::RefCell;
     use std::rc::Rc;
 
-    use super::core::{LispCell, LispProgram};
+    use super::core::{LispCell, LispCellRef, LispProgram};
     use super::{exec_prog, new_env, parse, print};
 
     #[test]
@@ -25,7 +25,7 @@ mod test {
         let program_str = "(do (print (+ 1 2) (- 1 2)) (foo bar baz (qux (+ 1 2) (blah) blah)))";
         let program = parse(program_str.to_string());
 
-        assert!(print(&program) == program_str, "Expected program_str and printed program to be equal");
+        assert_eq!(print(&program), program_str, "Expected program_str and printed program to be equal");
     }
 
     #[test]
@@ -55,14 +55,12 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Rc::new(RefCell::new(LispCell::List {
-                contents: Rc::new(RefCell::new(vec![
-                    make_atom("print"),
-                    make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
-                    make_quoted(make_list(vec![make_num(1f32), make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)])])),
-                    make_list(vec![make_atom("-"), make_num(3f32), make_num(5f32)])
-                ])),
-            }))),
+            entry: Some(make_list(vec![
+                make_atom("print"),
+                make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
+                make_quoted(make_list(vec![make_num(1f32), make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)])])),
+                make_list(vec![make_atom("-"), make_num(3f32), make_num(5f32)]),
+            ])),
         };
 
         assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
@@ -114,7 +112,7 @@ mod test {
         run_exec_test(prog_str, expected_result)
     }
 
-    fn run_exec_test<'a>(prog_str: &'a str, expected_result: Rc<RefCell<LispCell>>) {
+    fn run_exec_test<'a>(prog_str: &'a str, expected_result: LispCellRef) {
         let program = parse(prog_str.to_string());
 
         let env = new_env();
@@ -125,21 +123,19 @@ mod test {
         assert_eq!(*result, *expected_result);
     }
 
-    fn make_num(num: f32) -> Rc<RefCell<LispCell>> {
+    fn make_num(num: f32) -> LispCellRef {
         Rc::new(RefCell::new(LispCell::Number(num)))
     }
 
-    fn make_atom(name: &'static str) -> Rc<RefCell<LispCell>> {
+    fn make_atom(name: &'static str) -> LispCellRef {
         Rc::new(RefCell::new(LispCell::Atom(name.to_string())))
     }
 
-    fn make_list(list: Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
-        Rc::new(RefCell::new(LispCell::List {
-            contents: Rc::new(RefCell::new(list)),
-        }))
+    fn make_list(list: Vec<LispCellRef>) -> LispCellRef {
+        LispCell::new_list(&list)
     }
 
-    fn make_quoted(cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<LispCell>> {
+    fn make_quoted(cell: LispCellRef) -> LispCellRef {
         Rc::new(RefCell::new(LispCell::Quoted(cell)))
     }
 }

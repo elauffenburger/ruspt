@@ -15,7 +15,7 @@ pub fn parse(mut program: String) -> LispProgram {
     }
 }
 
-fn parse_init(program: &mut String) -> Rc<RefCell<LispCell>> {
+fn parse_init(program: &mut String) -> LispCellRef {
     let mut sanitized_program = program.replace("(", " ( ").replace(")", " ) ");
     log(|| println!("sanitized_program: {:?}", &sanitized_program));
 
@@ -27,7 +27,7 @@ fn parse_init(program: &mut String) -> Rc<RefCell<LispCell>> {
     return results.pop().unwrap();
 }
 
-fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<Rc<RefCell<LispCell>>>, depth: i32) {
+fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<LispCellRef>, depth: i32) {
     log(|| println!("{}results: {:?}", tab_to_depth(depth), &results));
 
     if text.is_empty() {
@@ -85,9 +85,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 
             log(|| println!("{}Finished results stack: {:?}", tab_to_depth(depth), &list_contents));
 
-            results.push(Rc::new(RefCell::new(LispCell::List {
-                contents: Rc::new(RefCell::new(list_contents)),
-            })));
+            results.push(LispCell::new_list(&list_contents));
 
             if greedy {
                 parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
