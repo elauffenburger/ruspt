@@ -13,6 +13,7 @@ type LispListRef = Rc<RefCell<LispList>>;
 pub enum LispCell {
     Atom(String),
     Number(f32),
+    Bool(bool),
     Str(String),
     Quoted(LispCellRef),
     Func(LispFunc),

@@ -28,3 +28,7 @@ pub fn make_list(list: Vec<LispCellRef>) -> LispCellRef {
 pub fn make_quoted(cell: LispCellRef) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Quoted(cell)))
 }
+
+pub fn make_bool(val: bool) -> LispCellRef {
+    Rc::new(RefCell::new(LispCell::Bool(val)))
+}
