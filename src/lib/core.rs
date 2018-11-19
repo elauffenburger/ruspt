@@ -212,6 +212,8 @@ fn make_builtin_symbols() -> HashMap<String, Rc<RefCell<LispCell>>> {
     add_op("push", LispFuncType::Normal, Rc::new(ops::push), &mut map);
     add_op("car", LispFuncType::Normal, Rc::new(ops::car), &mut map);
     add_op("cdr", LispFuncType::Normal, Rc::new(ops::cdr), &mut map);
+    add_op("if", LispFuncType::SpecialForm, Rc::new(ops::iff), &mut map);
+    add_op("eq", LispFuncType::Normal, Rc::new(ops::eq), &mut map);
 
     map
 }

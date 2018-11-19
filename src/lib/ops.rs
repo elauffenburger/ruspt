@@ -97,6 +97,33 @@ pub fn cdr(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
+pub fn iff(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    match args.as_slice() {
+        [pred, true_case, false_case] => {
+            let pred_result = exec(env, pred.clone());
+            let borrowed_pred_result = pred_result.borrow();
+            
+            match *borrowed_pred_result {
+                LispCell::Bool(true) => exec(env, true_case.clone()),
+                LispCell::Bool(false) => exec(env, false_case.clone()),
+                ref r @ _ => panic!("Invalid result returned by if predicate: {:?}", r)
+            }
+        },
+        _ => panic!("Invalid arg num passed to if: {:?}", &args)
+    }
+}
+
+pub fn eq(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    match args.as_slice() {
+        [left, right] => {
+            let is_eq = left == right;
+
+            Rc::new(RefCell::new(LispCell::Bool(is_eq)))
+        },
+        _ => panic!("Invalid arg num passed to if: {:?}", &args)
+    }
+}
+
 fn to_nums<'a>(args: &'a Vec<LispCellRef>) -> Box<Iterator<Item = f32> + 'a> {
     let map = args.iter().map(|arg| match *arg.borrow() {
         LispCell::Number(num) => num,

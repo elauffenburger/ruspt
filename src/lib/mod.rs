@@ -108,6 +108,11 @@ mod test {
         run_exec_test_literal("(do (def x (list (list 4 5 6) 1 3)) (push 2 (cdr x)) x)", "((4 5 6) 1 2 3)")
     }
 
+    #[test]
+    fn iff() {
+        run_exec_test_literal("(do (def x (if (eq 1 1) 1 0)) x)", "1")
+    }
+
     fn run_exec_test_literal<'a, 'b>(prog_str: &'a str, expected_result_str: &'b str) {
         let expected_result = parse(expected_result_str.to_string()).entry.unwrap();
 
