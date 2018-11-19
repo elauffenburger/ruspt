@@ -35,22 +35,14 @@ mod test {
 
         let expected_program = LispProgram {
             text: program_str.to_string(),
-            entry: Some(Rc::new(RefCell::new(LispCell::List {
-                contents: vec![
-                    make_atom("print"),
-                    Rc::new(RefCell::new(LispCell::List {
-                        contents: vec![
-                            make_atom("concat"),
-                            Rc::new(RefCell::new(LispCell::List {
-                                contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                            })),
-                            Rc::new(RefCell::new(LispCell::List {
-                                contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                            })),
-                        ],
-                    })),
-                ],
-            }))),
+            entry: Some(make_list(vec![
+                make_atom("print"),
+                make_list(vec![
+                    make_atom("concat"),
+                    make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
+                    make_list(vec![make_atom("-"), make_num(3f32), make_num(5f32)]),
+                ]),
+            ])),
         };
 
         assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
@@ -64,23 +56,12 @@ mod test {
         let expected_program = LispProgram {
             text: program_str.to_string(),
             entry: Some(Rc::new(RefCell::new(LispCell::List {
-                contents: vec![
+                contents: Rc::new(RefCell::new(vec![
                     make_atom("print"),
-                    Rc::new(RefCell::new(LispCell::List {
-                        contents: vec![make_atom("+"), make_num(1f32), make_num(2f32)],
-                    })),
-                    Rc::new(RefCell::new(LispCell::Quoted(Rc::new(RefCell::new(LispCell::List {
-                        contents: vec![
-                            make_num(1f32),
-                            Rc::new(RefCell::new(LispCell::List {
-                                contents: { vec![make_atom("+"), make_num(1f32), make_num(2f32)] },
-                            })),
-                        ],
-                    }))))),
-                    Rc::new(RefCell::new(LispCell::List {
-                        contents: vec![make_atom("-"), make_num(3f32), make_num(5f32)],
-                    })),
-                ],
+                    make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
+                    make_quoted(make_list(vec![make_num(1f32), make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)])])),
+                    make_list(vec![make_atom("-"), make_num(3f32), make_num(5f32)])
+                ])),
             }))),
         };
 
@@ -89,87 +70,59 @@ mod test {
 
     #[test]
     fn basic_adding() {
-        let program_str = "(+ 1 2)".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_num(3f32));
+        run_exec_test("(+ 1 2)", make_num(3f32))
     }
 
     #[test]
     fn basic_adding_2() {
-        let program_str = "(+ (+ 1 2) (+ 2 2))".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_num(7f32));
+        run_exec_test("(+ (+ 1 2) (+ 2 2))", make_num(7f32))
     }
 
     #[test]
     fn basic_math() {
-        let program_str = "(* (+ (* 1 2 3) (- 2 2 -5) (+ 1 1 2 3) (/ 1 2)) (+ 1 5 6))".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_num(222f32));
+        run_exec_test("(* (+ (* 1 2 3) (- 2 2 -5) (+ 1 1 2 3) (/ 1 2)) (+ 1 5 6))", make_num(222f32))
     }
 
     #[test]
     fn basic_list() {
-        let program_str = "(list 1 2 3)".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32)]));
+        run_exec_test("(list 1 2 3)", make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32)]))
     }
 
     #[test]
     fn basic_def_and_do() {
-        let program_str = "(do (def x (+ 2 2)) (+ x 5))".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_num(9f32));
+        run_exec_test("(do (def x (+ 2 2)) (+ x 5))", make_num(9f32))
     }
 
     #[test]
     fn basic_def_and_push() {
-        let program_str = "(do (def x (list 1 2 3)) (push '4 x) (push '5 x) x)".to_string();
-        let program = parse(program_str);
-
-        let env = new_env();
-        let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-
-        assert_eq!(*result, *make_list(vec![make_num(1f32), make_num(2f32), make_num(3f32), make_num(4f32), make_num(5f32)]));
+        run_exec_test_literal("(do (def x (list 1 2 3)) (push 4 x) (push 5 x) x)", "(1 2 3 4 5)")
     }
 
     #[test]
     fn car() {
-        let program_str = "(do (def x (list (list 3 4 5) 1 2)) (push '6 (car x)) x)".to_string();
-        let program = parse(program_str);
+        run_exec_test_literal("(do (def x (list (list 3 4 5) 1 2)) (push 6 (car x)) x)", "((3 4 5 6) 1 2)")
+    }
+
+    #[test]
+    fn cdr() {
+        run_exec_test_literal("(do (def x (list (list 3 4 5) 1 2)) (push 3 (cdr x)) x)", "((3 4 5) 1 2 3)")
+    }
+
+    fn run_exec_test_literal<'a, 'b>(prog_str: &'a str, expected_result_str: &'b str) {
+        let expected_result = parse(expected_result_str.to_string()).entry.unwrap();
+
+        run_exec_test(prog_str, expected_result)
+    }
+
+    fn run_exec_test<'a>(prog_str: &'a str, expected_result: Rc<RefCell<LispCell>>) {
+        let program = parse(prog_str.to_string());
 
         let env = new_env();
         let result = exec_prog(env, program);
-        println!("result: {:?}", result);
-        println!("\npretty result: {:?}", print_cell(result.clone()));
+        println!("result: {:?}", &result);
+        println!("pretty result: {:?}", print_cell(result.clone()));
 
-        assert_eq!(*result, *make_list(vec![make_list(vec![make_num(3f32), make_num(4f32), make_num(5f32), make_num(6f32)]), make_num(1f32), make_num(2f32)]));
+        assert_eq!(*result, *expected_result);
     }
 
     fn make_num(num: f32) -> Rc<RefCell<LispCell>> {
@@ -182,7 +135,11 @@ mod test {
 
     fn make_list(list: Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>> {
         Rc::new(RefCell::new(LispCell::List {
-            contents: list,
+            contents: Rc::new(RefCell::new(list)),
         }))
+    }
+
+    fn make_quoted(cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<LispCell>> {
+        Rc::new(RefCell::new(LispCell::Quoted(cell)))
     }
 }

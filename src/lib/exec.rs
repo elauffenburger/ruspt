@@ -33,7 +33,8 @@ fn exec_rec(env: &mut Environment, cell: Rc<RefCell<LispCell>>) -> Rc<RefCell<Li
         LispCell::List {
             ref contents,
         } => {
-            let (x, xs) = contents.split_at(1);
+            let borrowed_contents = contents.borrow();
+            let (x, xs) = borrowed_contents.split_at(1);
 
             let function = exec_rec(env, x.get(0).unwrap().clone());
 

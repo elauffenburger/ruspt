@@ -86,7 +86,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             log(|| println!("{}Finished results stack: {:?}", tab_to_depth(depth), &list_contents));
 
             results.push(Rc::new(RefCell::new(LispCell::List {
-                contents: list_contents,
+                contents: Rc::new(RefCell::new(list_contents)),
             })));
 
             if greedy {

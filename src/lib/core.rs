@@ -13,7 +13,7 @@ pub enum LispCell {
     Quoted(Rc<RefCell<LispCell>>),
     Func(LispFunc),
     List {
-        contents: Vec<Rc<RefCell<LispCell>>>,
+        contents: Rc<RefCell<Vec<Rc<RefCell<LispCell>>>>>,
     },
 }
 
@@ -99,6 +99,7 @@ fn make_builtin_symbols() -> HashMap<String, Rc<RefCell<LispCell>>> {
     add_op("do", LispFuncType::SpecialForm, Rc::new(ops::dew), &mut map);
     add_op("push", LispFuncType::Normal, Rc::new(ops::push), &mut map);
     add_op("car", LispFuncType::Normal, Rc::new(ops::car), &mut map);
+    add_op("cdr", LispFuncType::Normal, Rc::new(ops::cdr), &mut map);
 
     map
 }

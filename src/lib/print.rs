@@ -30,9 +30,11 @@ fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
         } => {
             result.push('(');
 
-            let n = contents.len();
+            let borrowed_contents = contents.borrow();
+
+            let n = borrowed_contents.len();
             for i in 0..n {
-                let cell = &contents[i];
+                let cell = &borrowed_contents[i];
 
                 print_rec(cell.clone(), result);
 
