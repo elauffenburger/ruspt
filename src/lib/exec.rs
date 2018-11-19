@@ -31,19 +31,13 @@ fn exec_rec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
             quoted.clone()
         }
         LispCell::Number(_) => cell.clone(),
-        LispCell::List {
-            ref contents,
-        } => {
-            let mut borrowed_contents = contents.borrow_mut();
+        LispCell::List(ref list) => {
+            let (x, xs) = LispList::split(list.clone());
 
-            unsafe {
-                let (x, xs) = util::split_at_head(&mut borrowed_contents);
+            let function = exec_rec(env, x.borrow().get_value());
+            let args = LispList::to_vec(xs.unwrap());
 
-                let function = exec_rec(env, x.unwrap().clone());
-                let args: Vec<LispCellRef> = xs.iter().map(|cell| cell.clone()).collect();
-
-                call_fn(env, function, &args)
-            }
+            call_fn(env, function, &args)
         }
         ref t @ _ => panic!("LispCell type {:?} not implemented in exec!", t),
     }

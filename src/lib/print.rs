@@ -10,14 +10,14 @@ pub fn print(program: &LispProgram) -> String {
     }
 }
 
-pub fn print_cell(cell: LispCellRef) -> String {
+pub fn print_cell(cell: Rc<RefCell<LispCell>>) -> String {
     let mut result = String::new();
     print_rec(cell, &mut result);
 
     result
 }
 
-fn print_rec(node: LispCellRef, result: &mut String) {
+fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
     match *node.borrow() {
         LispCell::Quoted(ref quoted) => {
             print_rec(quoted.clone(), result);
@@ -25,26 +25,20 @@ fn print_rec(node: LispCellRef, result: &mut String) {
         }
         LispCell::Number(num) => result.push_str(num.to_string().as_str()),
         LispCell::Atom(ref atom) => result.push_str(atom.as_str()),
-        LispCell::List {
-            ref contents,
-        } => {
+        LispCell::List(ref list) => {
             result.push('(');
 
-            let borrowed_contents = contents.borrow();
-            let mut iter = borrowed_contents.iter().peekable();
+            let list_vec = LispList::to_vec(list.clone());
 
-            loop {
-                match iter.next() {
-                    Some(cell) => {
-                        print_rec(cell.clone(), result);
+            let n = list_vec.len();
+            for i in 0..n {
+                let cell = &list_vec[i];
 
-                        match iter.peek() {
-                            Some(_) => result.push(' '),
-                            None => {}
-                        };
-                    }
-                    None => break,
-                };
+                print_rec(cell.clone(), result);
+
+                if i != n - 1 {
+                    result.push(' ');
+                }
             }
 
             result.push(')');

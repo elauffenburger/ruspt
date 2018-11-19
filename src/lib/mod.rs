@@ -20,6 +20,8 @@ mod test {
     use super::core::{LispCell, LispCellRef, LispProgram};
     use super::{exec_prog, new_env, parse, print};
 
+    use super::util::*;
+
     #[test]
     fn basic_parsing_and_printing() {
         let program_str = "(do (print (+ 1 2) (- 1 2)) (foo bar baz (qux (+ 1 2) (blah) blah)))";
@@ -93,17 +95,17 @@ mod test {
 
     #[test]
     fn basic_def_and_push() {
-        run_exec_test_literal("(do (def x (list 1 2 3)) (push 4 x) (push 5 x) x)", "(1 2 3 4 5)")
+        run_exec_test_literal("(do (def x (list 1)) (push 3 x) (push 2 x) x)", "(1 2 3)")
     }
 
     #[test]
     fn car() {
-        run_exec_test_literal("(do (def x (list (list 3 4 5) 1 2)) (push 6 (car x)) x)", "((3 4 5 6) 1 2)")
+        run_exec_test_literal("(do (def x (list (list 2 4) 0 1)) (push 3 (car x)) x)", "((2 3 4) 0 1)")
     }
 
     #[test]
     fn cdr() {
-        run_exec_test_literal("(do (def x (list (list 3 4 5) 1 2)) (push 3 (cdr x)) x)", "((3 4 5) 1 2 3)")
+        run_exec_test_literal("(do (def x (list (list 4 5 6) 1 3)) (push 2 (cdr x)) x)", "((4 5 6) 1 2 3)")
     }
 
     fn run_exec_test_literal<'a, 'b>(prog_str: &'a str, expected_result_str: &'b str) {
@@ -121,21 +123,5 @@ mod test {
         println!("pretty result: {:?}", print_cell(result.clone()));
 
         assert_eq!(*result, *expected_result);
-    }
-
-    fn make_num(num: f32) -> LispCellRef {
-        Rc::new(RefCell::new(LispCell::Number(num)))
-    }
-
-    fn make_atom(name: &'static str) -> LispCellRef {
-        Rc::new(RefCell::new(LispCell::Atom(name.to_string())))
-    }
-
-    fn make_list(list: Vec<LispCellRef>) -> LispCellRef {
-        LispCell::new_list(&list)
-    }
-
-    fn make_quoted(cell: LispCellRef) -> LispCellRef {
-        Rc::new(RefCell::new(LispCell::Quoted(cell)))
     }
 }

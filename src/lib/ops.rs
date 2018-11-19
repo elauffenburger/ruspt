@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use super::core::log;
 use super::util;
-use super::{exec, Environment, LispCell, LispCellRef};
+use super::{exec, Environment, LispCell, LispCellRef, LispList};
 
 pub fn add(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
@@ -28,7 +28,7 @@ pub fn div(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 }
 
 pub fn list(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
-    LispCell::new_list(&args.clone())
+    LispCell::new_list(args.clone())
 }
 
 pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
@@ -58,13 +58,11 @@ pub fn dew(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 
 pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
-        [el, list] => match *list.borrow_mut() {
-            LispCell::List {
-                ref contents,
-            } => {
-                contents.borrow_mut().push_back(el.clone());
+        [el, list_arg] => match *list_arg.borrow_mut() {
+            LispCell::List(ref list) => {
+                list.borrow_mut().push_back(el.clone());
 
-                list.clone()
+                list_arg.clone()
             }
             ref l @ _ => panic!("Second arg passed to push was not a list: {:?}", l),
         },
@@ -74,13 +72,8 @@ pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 
 pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
-        [list] => match *list.borrow() {
-            LispCell::List {
-                ref contents,
-            } => match contents.borrow().front() {
-                Some(first) => first.clone(),
-                None => lisp_null(),
-            },
+        [list_arg] => match *list_arg.borrow() {
+            LispCell::List(ref list) => list.borrow().get_value(),
             ref l @ _ => panic!("Arg passed to push was not a list: {:?}", l),
         },
         _ => panic!("Invalid arg num passed to push: {:?}", &args),
@@ -90,22 +83,12 @@ pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 pub fn cdr(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list] => match *list.borrow() {
-            LispCell::List {
-                ref contents,
-            } => {
-                let mut borrowed_contents = contents.borrow_mut();
-                println!("cdr'ing: {:?}", &borrowed_contents);
+            LispCell::List(ref list) => {
+                let (_, rest) = LispList::split(list.clone());
 
-                unsafe {
-                    let (_, rest) = util::split_at_head(&mut borrowed_contents);
-
-                    println!("borrowed_contents after split: {:?}", &borrowed_contents);
-                    println!("rest: {:?}", &rest);
-
-                    match rest.len() {
-                        0 => lisp_null(),
-                        _ => LispCell::make_list(rest),
-                    }
+                match rest {
+                    Some(rest) => LispCell::List(rest).to_ref(),
+                    None => lisp_null(),
                 }
             }
             ref l @ _ => panic!("Arg passed to push was not a list: {:?}", l),
@@ -124,5 +107,5 @@ fn to_nums<'a>(args: &'a Vec<LispCellRef>) -> Box<Iterator<Item = f32> + 'a> {
 }
 
 fn lisp_null() -> LispCellRef {
-    LispCell::new_list(&vec![])
+    LispCell::new_list(vec![])
 }

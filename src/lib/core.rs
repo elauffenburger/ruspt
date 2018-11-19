@@ -1,12 +1,13 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::collections::LinkedList;
 use std::fmt::{self, Debug};
 use std::rc::Rc;
 
 use super::ops;
+use super::util;
 
 pub type LispCellRef = Rc<RefCell<LispCell>>;
+type LispListRef = Rc<RefCell<LispList>>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LispCell {
@@ -15,27 +16,111 @@ pub enum LispCell {
     Str(String),
     Quoted(LispCellRef),
     Func(LispFunc),
-    List {
-        contents: Rc<RefCell<LinkedList<LispCellRef>>>,
-    },
+    List(Rc<RefCell<LispList>>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LispList {
+    value: LispCellRef,
+    next: Option<Rc<RefCell<LispList>>>,
+}
+
+impl LispList {
+    pub fn new() -> Option<LispList> {
+        Self::from_vec(vec![])
+    }
+
+    pub fn from_value(value: LispCellRef) -> LispList {
+        LispList {
+            value: value,
+            next: None,
+        }
+    }
+
+    pub fn from_vec(vec: Vec<LispCellRef>) -> Option<LispList> {
+        if vec.len() == 0 {
+            return None;
+        }
+
+        let mut head = None;
+
+        {
+            let mut current: Option<Rc<RefCell<LispList>>> = None;
+
+            vec.iter().for_each(|cell| {
+                let next = LispList::from_value(cell.clone()).to_ref();
+
+                match head {
+                    None => {
+                        head = Some(next.clone());
+                        current = Some(next);
+                    }
+                    _ => {
+                        let borrowed_current = current.clone().expect("current should be init'd after init'ing head");
+                        borrowed_current.borrow_mut().next = Some(next.clone());
+                        current = Some(next);
+                    }
+                }
+            });
+        }
+
+        Some(Rc::try_unwrap(head.unwrap()).unwrap().into_inner())
+    }
+
+    pub fn split(list: LispListRef) -> (LispListRef, Option<LispListRef>) {
+        let head = list.clone();
+        let rest = list.borrow().next.clone();
+
+        (head, rest)
+    }
+
+    pub fn to_ref(self) -> LispListRef {
+        Rc::new(RefCell::new(self))
+    }
+
+    pub fn get_value(&self) -> LispCellRef {
+        self.value.clone()
+    }
+
+    pub fn to_vec(list: LispListRef) -> Vec<LispCellRef> {
+        let mut results = vec![];
+        let mut current = Some(list);
+
+        loop {
+            match current {
+                None => break,
+                Some(node) => {
+                    let borrowed_node = node.borrow();
+
+                    results.push(borrowed_node.get_value());
+                    current = borrowed_node.next.clone();
+                }
+            }
+        }
+
+        results
+    }
+
+    pub fn push_back(&mut self, node: LispCellRef) -> LispListRef {
+        let orig_next = self.next.clone();
+        let new_node = LispList::from_value(node).to_ref();
+
+        self.next = Some(new_node.clone());
+
+        match orig_next {
+            None => {}
+            Some(_) => {
+                new_node.borrow_mut().next = orig_next;
+            }
+        }
+
+        new_node
+    }
 }
 
 impl LispCell {
-    pub fn new_list(cells: &[LispCellRef]) -> LispCellRef {
-        let mut list = LinkedList::new();
-        cells.iter().for_each(|cell| {
-            list.push_back(cell.clone());
-        });
-
-        Self::make_list(list)
-    }
-
-    pub fn make_list(list: LinkedList<LispCellRef>) -> LispCellRef {
-        let cell = LispCell::List {
-            contents: Rc::new(RefCell::new(list)),
-        };
-
-        cell.to_ref()
+    pub fn new_list(list: Vec<LispCellRef>) -> LispCellRef {
+        LispCell::List(LispList::from_vec(list).unwrap().to_ref()).to_ref()
     }
 
     pub fn to_ref(self) -> LispCellRef {
@@ -147,5 +232,19 @@ where
 {
     if cfg!(feature = "core_debug") {
         logFn();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::util;
+    use super::*;
+
+    #[test]
+    fn create_list_from_vec() {
+        let list_contents = vec![util::make_num(1f32)];
+        let list = LispList::from_vec(list_contents.clone()).unwrap().to_ref();
+
+        assert_eq!(LispList::to_vec(list), list_contents);
     }
 }
