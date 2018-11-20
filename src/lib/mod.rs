@@ -122,8 +122,8 @@ mod test {
     fn run_exec_test<'a>(prog_str: &'a str, expected_result: LispCellRef) {
         let program = parse(prog_str.to_string());
 
-        let env = new_env();
-        let result = exec_prog(env, program);
+        let mut env = new_env();
+        let result = exec_prog(&mut env, program);
         println!("result: {:?}", &result);
         println!("pretty result: {:?}", print_cell(result.clone()));
 
