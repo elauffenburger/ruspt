@@ -2,8 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::core::log;
-use super::util;
-use super::{exec, Environment, LispCell, LispCellRef, LispList};
+use super::{exec, Environment, LispCell, LispCellRef, LispFunc, LispFuncType, LispList};
 
 pub fn add(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
@@ -48,6 +47,49 @@ pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
             cell.clone()
         }
         _ => panic!("Unable to find symbol to define in call to def"),
+    }
+}
+
+pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    match args.as_slice() {
+        [arg1, arg2, arg3] => {
+            match (&*arg1.borrow(), &*arg2.borrow(), arg3) {
+                (LispCell::Atom(ref func_name), LispCell::List(ref func_args), ref func_body) => {
+                    let cloned_func_args = func_args.clone();
+
+                    let arg_names: Vec<String> = LispList::to_vec(cloned_func_args)
+                        .iter()
+                        .map(|arg| match *arg.borrow() {
+                            LispCell::Atom(ref name) => name.clone(),
+                            _ => panic!("Non-atom arg passed in func args list: {:?}", &func_args),
+                        }).collect();
+
+                    let func_impl = move |env: &mut Environment, args: &Vec<LispCellRef>| {
+                        // {
+                        //     let mut i = 0;
+                        //     arg_names.iter().for_each(|name| {
+                        //         env.def(name.clone(), args[i]);
+                        //         i += 1;
+                        //     });
+                        // }
+
+                        // let cloned_func_body = (&func_body).clone();
+
+                        // exec(env, *cloned_func_body)
+
+                        panic!("func_impl not implemented!")
+                    };
+
+                    let func = LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, Rc::new(func_impl))).to_ref();
+
+                    env.def(func_name.clone(), func.clone());
+
+                    func
+                }
+                _ => panic!("Invalid arg types passed to defn (expecting name, args, and body): {:?}", &args),
+            }
+        }
+        _ => panic!("Invalid number of args passed to defn: {:?}", &args),
     }
 }
 
@@ -102,14 +144,14 @@ pub fn iff(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
         [pred, true_case, false_case] => {
             let pred_result = exec(env, pred.clone());
             let borrowed_pred_result = pred_result.borrow();
-            
+
             match *borrowed_pred_result {
                 LispCell::Bool(true) => exec(env, true_case.clone()),
                 LispCell::Bool(false) => exec(env, false_case.clone()),
-                ref r @ _ => panic!("Invalid result returned by if predicate: {:?}", r)
+                ref r @ _ => panic!("Invalid result returned by if predicate: {:?}", r),
             }
-        },
-        _ => panic!("Invalid arg num passed to if: {:?}", &args)
+        }
+        _ => panic!("Invalid arg num passed to if: {:?}", &args),
     }
 }
 
@@ -119,8 +161,8 @@ pub fn eq(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
             let is_eq = left == right;
 
             Rc::new(RefCell::new(LispCell::Bool(is_eq)))
-        },
-        _ => panic!("Invalid arg num passed to if: {:?}", &args)
+        }
+        _ => panic!("Invalid arg num passed to if: {:?}", &args),
     }
 }
 

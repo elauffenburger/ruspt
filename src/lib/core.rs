@@ -135,6 +135,12 @@ pub struct LispFunc {
     pub func: Rc<LispFn>,
 }
 
+impl LispFunc {
+    pub fn new(name: String, func_type: LispFuncType, func: Rc<LispFn>) -> LispFunc {
+        LispFunc { name: name, func_type: func_type, func: func }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum LispFuncType {
     Macro,
@@ -170,7 +176,7 @@ pub struct LispProgram {
     pub entry: Option<Rc<RefCell<LispCell>>>,
 }
 
-pub type LispFn = Fn(&mut Environment, &Vec<Rc<RefCell<LispCell>>>) -> Rc<RefCell<LispCell>>;
+pub type LispFn = Fn(&mut Environment, &Vec<LispCellRef>) -> LispCellRef;
 
 pub struct Environment {
     pub symbols: HashMap<String, Rc<RefCell<LispCell>>>,
@@ -193,6 +199,12 @@ impl Environment {
     }
 }
 
+impl Clone for Environment {
+    fn clone(&self) -> Self {
+        Environment { symbols: self.symbols.clone() }
+    }
+}
+
 pub fn new_env() -> Environment {
     Environment {
         symbols: make_builtin_symbols(),
@@ -208,6 +220,7 @@ fn make_builtin_symbols() -> HashMap<String, Rc<RefCell<LispCell>>> {
     add_op("/", LispFuncType::Normal, Rc::new(ops::div), &mut map);
     add_op("list", LispFuncType::Normal, Rc::new(ops::list), &mut map);
     add_op("def", LispFuncType::SpecialForm, Rc::new(ops::def), &mut map);
+    add_op("defn", LispFuncType::SpecialForm, Rc::new(ops::defn), &mut map);
     add_op("do", LispFuncType::SpecialForm, Rc::new(ops::dew), &mut map);
     add_op("push", LispFuncType::Normal, Rc::new(ops::push), &mut map);
     add_op("car", LispFuncType::Normal, Rc::new(ops::car), &mut map);
