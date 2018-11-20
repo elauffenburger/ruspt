@@ -22,25 +22,28 @@ pub enum LispCell {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LispList {
-    value: LispCellRef,
+    value: Option<LispCellRef>,
     next: Option<Rc<RefCell<LispList>>>,
 }
 
 impl LispList {
-    pub fn new() -> Option<LispList> {
+    pub fn new() -> LispList {
         Self::from_vec(vec![])
     }
 
     pub fn from_value(value: LispCellRef) -> LispList {
         LispList {
-            value: value,
+            value: Some(value),
             next: None,
         }
     }
 
-    pub fn from_vec(vec: Vec<LispCellRef>) -> Option<LispList> {
+    pub fn from_vec(vec: Vec<LispCellRef>) -> LispList {
         if vec.len() == 0 {
-            return None;
+            return LispList {
+                value: None,
+                next: None,
+            };
         }
 
         let mut head = None;
@@ -65,7 +68,7 @@ impl LispList {
             });
         }
 
-        Some(Rc::try_unwrap(head.unwrap()).unwrap().into_inner())
+        Rc::try_unwrap(head.unwrap()).unwrap().into_inner()
     }
 
     pub fn split(list: LispListRef) -> (LispListRef, Option<LispListRef>) {
@@ -79,7 +82,7 @@ impl LispList {
         Rc::new(RefCell::new(self))
     }
 
-    pub fn get_value(&self) -> LispCellRef {
+    pub fn get_value(&self) -> Option<LispCellRef> {
         self.value.clone()
     }
 
@@ -93,7 +96,11 @@ impl LispList {
                 Some(node) => {
                     let borrowed_node = node.borrow();
 
-                    results.push(borrowed_node.get_value());
+                    match borrowed_node.get_value() {
+                        Some(value) => results.push(value.clone()),
+                        None => {}
+                    };
+
                     current = borrowed_node.next.clone();
                 }
             }
@@ -121,7 +128,7 @@ impl LispList {
 
 impl LispCell {
     pub fn new_list(list: Vec<LispCellRef>) -> LispCellRef {
-        LispCell::List(LispList::from_vec(list).unwrap().to_ref()).to_ref()
+        LispCell::List(LispList::from_vec(list).to_ref()).to_ref()
     }
 
     pub fn to_ref(self) -> LispCellRef {
@@ -132,13 +139,21 @@ impl LispCell {
 pub struct LispFunc {
     pub name: String,
     pub func_type: LispFuncType,
-    pub func: Rc<LispFn>,
+    pub func_executor: Rc<Box<LispFuncExecutor>>,
 }
 
 impl LispFunc {
-    pub fn new(name: String, func_type: LispFuncType, func: Rc<LispFn>) -> LispFunc {
-        LispFunc { name: name, func_type: func_type, func: func }
+    pub fn new(name: String, func_type: LispFuncType, func_executor: Box<LispFuncExecutor>) -> LispFunc {
+        LispFunc {
+            name: name,
+            func_type: func_type,
+            func_executor: Rc::new(func_executor),
+        }
     }
+}
+
+pub trait LispFuncExecutor {
+    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -165,7 +180,7 @@ impl Clone for LispFunc {
         LispFunc {
             name: self.name.clone(),
             func_type: self.func_type.clone(),
-            func: self.func.clone(),
+            func_executor: self.func_executor.clone(),
         }
     }
 }
@@ -175,8 +190,6 @@ pub struct LispProgram {
     pub text: String,
     pub entry: Option<Rc<RefCell<LispCell>>>,
 }
-
-pub type LispFn = Fn(&mut Environment, &Vec<LispCellRef>) -> LispCellRef;
 
 pub struct Environment {
     pub symbols: HashMap<String, Rc<RefCell<LispCell>>>,
@@ -201,7 +214,9 @@ impl Environment {
 
 impl Clone for Environment {
     fn clone(&self) -> Self {
-        Environment { symbols: self.symbols.clone() }
+        Environment {
+            symbols: self.symbols.clone(),
+        }
     }
 }
 
@@ -237,9 +252,27 @@ fn add_op(name: &'static str, func_type: LispFuncType, op: Rc<LispFn>, map: &mut
         Rc::new(RefCell::new(LispCell::Func(LispFunc {
             name: name.to_string(),
             func_type: func_type,
-            func: op,
+            func_executor: Rc::new(Box::new(FnLispFuncExecutor {
+                op: op,
+            })),
         }))),
     );
+}
+
+pub type LispFn = Fn(&mut Environment, &Vec<LispCellRef>) -> LispCellRef;
+
+struct FnLispFuncExecutor {
+    op: Rc<LispFn>,
+}
+
+impl LispFuncExecutor for FnLispFuncExecutor {
+    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+        (self.op)(env, args)
+    }
+}
+
+pub fn lisp_null() -> LispCellRef {
+    LispCell::new_list(vec![])
 }
 
 pub fn log<F>(logFn: F)
@@ -259,7 +292,7 @@ mod test {
     #[test]
     fn create_list_from_vec() {
         let list_contents = vec![util::make_num(1f32)];
-        let list = LispList::from_vec(list_contents.clone()).unwrap().to_ref();
+        let list = LispList::from_vec(list_contents.clone()).to_ref();
 
         assert_eq!(LispList::to_vec(list), list_contents);
     }

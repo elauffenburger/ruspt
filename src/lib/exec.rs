@@ -15,6 +15,10 @@ pub fn exec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
     exec_rec(env, cell)
 }
 
+pub fn exec_ref(env: &mut Environment, cell_ref: &LispCellRef) -> LispCellRef {
+    exec_rec(env, cell_ref.clone())
+}
+
 fn exec_rec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
     match *cell.borrow() {
         LispCell::Atom(ref symbol) => {
@@ -34,8 +38,11 @@ fn exec_rec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
         LispCell::List(ref list) => {
             let (x, xs) = LispList::split(list.clone());
 
-            let function = exec_rec(env, x.borrow().get_value());
-            let args = LispList::to_vec(xs.unwrap());
+            let function = exec_rec(env, x.borrow().get_value().expect("There should be a value in the head of the args list to exec"));
+            let args = match xs {
+                Some(cells) => LispList::to_vec(cells).iter().map(|cell| cell.clone()).collect::<Vec<LispCellRef>>(),
+                None => vec![]
+            } ;
 
             call_fn(env, function, &args)
         }
@@ -51,7 +58,7 @@ fn call_fn(env: &mut Environment, function_cell: LispCellRef, args: &[LispCellRe
                 _ => args.clone().iter().map(|cell| exec_rec(env, cell.clone())).collect(),
             };
 
-            (function.func)(env, &args)
+            function.func_executor.exec(env, &args)
         }
         ref t @ _ => panic!("LispCell type {:?} not a Func!", t),
     }

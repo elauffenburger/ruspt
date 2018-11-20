@@ -69,6 +69,19 @@ mod test {
     }
 
     #[test]
+    fn parse_empty_list() {
+        let program_str = "(print ())";
+        let parsed_program = parse(program_str.to_string());
+
+        let expected_program = LispProgram {
+            text: program_str.to_string(),
+            entry: Some(make_list(vec![make_atom("print"), make_list(vec![])])),
+        };
+
+        assert_eq!(parsed_program, expected_program, "Expected parsed program and expected program to be equal")
+    }
+
+    #[test]
     fn basic_adding() {
         run_exec_test("(+ 1 2)", make_num(3f32))
     }
@@ -111,6 +124,16 @@ mod test {
     #[test]
     fn iff() {
         run_exec_test_literal("(do (def x (if (eq 1 1) 1 0)) x)", "1")
+    }
+
+    #[test]
+    fn basic_defn() {
+        run_exec_test_literal("(do (defn foo () (+ 1 1)) (foo))", "2")
+    }
+
+    #[test]
+    fn basic_defn_with_args() {
+        run_exec_test_literal("(do (def x 5) (defn foo (x) (+ x 1)) (foo x))", "6")
     }
 
     fn run_exec_test_literal<'a, 'b>(prog_str: &'a str, expected_result_str: &'b str) {

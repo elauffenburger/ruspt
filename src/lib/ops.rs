@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use super::core::log;
-use super::{exec, Environment, LispCell, LispCellRef, LispFunc, LispFuncType, LispList};
+use super::core::{self, log};
+use super::{exec, Environment, LispCell, LispCellRef, LispFunc, LispFuncExecutor, LispFuncType, LispList};
 
 pub fn add(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
@@ -52,43 +52,38 @@ pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 
 pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
-        [arg1, arg2, arg3] => {
-            match (&*arg1.borrow(), &*arg2.borrow(), arg3) {
-                (LispCell::Atom(ref func_name), LispCell::List(ref func_args), ref func_body) => {
-                    let cloned_func_args = func_args.clone();
+        [arg1, arg2, arg3] => match (&*arg1.borrow(), &*arg2.borrow(), arg3) {
+            (LispCell::Atom(ref func_name), LispCell::List(ref func_args), func_body) => {
+                log(|| println!("preparing to defn {}", func_name));
 
-                    let arg_names: Vec<String> = LispList::to_vec(cloned_func_args)
-                        .iter()
-                        .map(|arg| match *arg.borrow() {
+                let cloned_func_args = func_args.clone();
+
+                let arg_names: Vec<String> = LispList::to_vec(cloned_func_args)
+                    .iter()
+                    .map(|arg| {
+                        let unwrapped_arg = arg.clone();
+                        let borrowed_arg = unwrapped_arg.borrow();
+
+                        match *borrowed_arg {
                             LispCell::Atom(ref name) => name.clone(),
                             _ => panic!("Non-atom arg passed in func args list: {:?}", &func_args),
-                        }).collect();
+                        }
+                    }).collect();
 
-                    let func_impl = move |env: &mut Environment, args: &Vec<LispCellRef>| {
-                        // {
-                        //     let mut i = 0;
-                        //     arg_names.iter().for_each(|name| {
-                        //         env.def(name.clone(), args[i]);
-                        //         i += 1;
-                        //     });
-                        // }
+                let func_executor = Box::new(DefnFuncExecutorImpl {
+                    name: func_name.clone(),
+                    arg_names: arg_names,
+                    func_body: func_body.clone(),
+                });
 
-                        // let cloned_func_body = (&func_body).clone();
+                let func = LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, func_executor)).to_ref();
 
-                        // exec(env, *cloned_func_body)
+                env.def(func_name.clone(), func.clone());
 
-                        panic!("func_impl not implemented!")
-                    };
-
-                    let func = LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, Rc::new(func_impl))).to_ref();
-
-                    env.def(func_name.clone(), func.clone());
-
-                    func
-                }
-                _ => panic!("Invalid arg types passed to defn (expecting name, args, and body): {:?}", &args),
+                func
             }
-        }
+            _ => panic!("Invalid arg types passed to defn (expecting name, args, and body): {:?}", &args),
+        },
         _ => panic!("Invalid number of args passed to defn: {:?}", &args),
     }
 }
@@ -115,7 +110,10 @@ pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list_arg] => match *list_arg.borrow() {
-            LispCell::List(ref list) => list.borrow().get_value(),
+            LispCell::List(ref list) => match list.borrow().get_value() {
+                Some(value) => value,
+                _ => core::lisp_null(),
+            },
             ref l @ _ => panic!("Arg passed to push was not a list: {:?}", l),
         },
         _ => panic!("Invalid arg num passed to push: {:?}", &args),
@@ -130,7 +128,7 @@ pub fn cdr(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
 
                 match rest {
                     Some(rest) => LispCell::List(rest).to_ref(),
-                    None => lisp_null(),
+                    None => core::lisp_null(),
                 }
             }
             ref l @ _ => panic!("Arg passed to push was not a list: {:?}", l),
@@ -175,6 +173,31 @@ fn to_nums<'a>(args: &'a Vec<LispCellRef>) -> Box<Iterator<Item = f32> + 'a> {
     Box::new(map)
 }
 
-fn lisp_null() -> LispCellRef {
-    LispCell::new_list(vec![])
+struct DefnFuncExecutorImpl {
+    name: String,
+    func_body: LispCellRef,
+    arg_names: Vec<String>,
+}
+
+impl LispFuncExecutor for DefnFuncExecutorImpl {
+    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+        log(|| println!("exec'ing {}", &self.name));
+
+        {
+            let n = args.len();
+            let expected_n = self.arg_names.len();
+
+            if n != expected_n {
+                panic!("number of args provided ({}) does not equal expected num ({})", n, expected_n)
+            }
+
+            let mut i = 0;
+            self.arg_names.iter().for_each(|name| {
+                env.def(name.clone(), args[i].clone());
+                i += 1;
+            });
+        }
+
+        exec(env, self.func_body.clone())
+    }
 }

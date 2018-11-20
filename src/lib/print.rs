@@ -19,9 +19,14 @@ pub fn print_cell(cell: Rc<RefCell<LispCell>>) -> String {
 
 fn print_rec(node: Rc<RefCell<LispCell>>, result: &mut String) {
     match *node.borrow() {
+        LispCell::Func(ref func) => {
+            result.push_str(format!("#{}", &func.name).as_str())
+        }
         LispCell::Quoted(ref quoted) => {
-            print_rec(quoted.clone(), result);
-            *result = format!("'{}", result);
+            let mut quoted_result = String::new();
+            print_rec(quoted.clone(), &mut quoted_result);
+
+            result.push_str(format!("'{}", quoted_result).as_str());
         }
         LispCell::Number(num) => result.push_str(num.to_string().as_str()),
         LispCell::Atom(ref atom) => result.push_str(atom.as_str()),
