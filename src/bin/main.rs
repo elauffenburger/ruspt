@@ -1,12 +1,12 @@
 extern crate rusptlib;
 
-use rusptlib::{exec_prog, parse};
-use std::io::{self, Read, Write};
+use rusptlib::{exec_prog, parse, Environment};
+use std::io::{self, Write};
 
 fn main() {
     print!("Welcome to ruspt!");
 
-    let mut env = rusptlib::new_env();
+    let mut env = Environment::new();
 
     loop {
         print!("> ");

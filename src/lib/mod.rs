@@ -14,11 +14,9 @@ pub use util::*;
 #[cfg(test)]
 mod test {
     use print::print_cell;
-    use std::cell::RefCell;
-    use std::rc::Rc;
 
-    use super::core::{LispCell, LispCellRef, LispProgram};
-    use super::{exec_prog, new_env, parse, print};
+    use super::core::{Environment, LispCellRef, LispProgram};
+    use super::{exec_prog, parse, print};
 
     use super::util::*;
 
@@ -145,7 +143,7 @@ mod test {
     fn run_exec_test<'a>(prog_str: &'a str, expected_result: LispCellRef) {
         let program = parse(prog_str.to_string());
 
-        let mut env = new_env();
+        let mut env = Environment::new();
         let result = exec_prog(&mut env, program);
         println!("result: {:?}", &result);
         println!("pretty result: {:?}", print_cell(result.clone()));

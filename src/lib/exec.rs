@@ -1,10 +1,6 @@
 use super::core::*;
-use super::util;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-
-pub fn exec_prog(mut env: &mut Environment, program: LispProgram) -> LispCellRef {
+pub fn exec_prog(env: &mut Environment, program: LispProgram) -> LispCellRef {
     match program.entry {
         Some(e) => exec_rec(env, e),
         _ => panic!("No entry found for program!"),

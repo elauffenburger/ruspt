@@ -3,7 +3,7 @@ use core::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub fn parse(mut program: String) -> LispProgram {
+pub fn parse(program: String) -> LispProgram {
     let mut trimmed_program = program.trim().to_string();
     log(|| println!("program: {}", &trimmed_program));
 
@@ -132,12 +132,12 @@ fn parse_rec_finalize_word(
     }
 }
 
-pub fn log<F>(logFn: F)
+fn log<F>(log_fn: F)
 where
     F: FnOnce(),
 {
     if cfg!(feature = "parse_debug") {
-        logFn();
+        log_fn();
     }
 }
 

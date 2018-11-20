@@ -4,29 +4,29 @@ use std::rc::Rc;
 use super::core::{self, log};
 use super::{exec, Environment, LispCell, LispCellRef, LispFunc, LispFuncExecutor, LispFuncType, LispList};
 
-pub fn add(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn add(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
 }
 
-pub fn sub(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn sub(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
     LispCell::Number(nums.fold(first, |acc, val| acc - val)).to_ref()
 }
 
-pub fn mul(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn mul(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     LispCell::Number(to_nums(args).product()).to_ref()
 }
 
-pub fn div(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn div(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
     LispCell::Number(nums.fold(first, |acc, val| acc / val)).to_ref()
 }
 
-pub fn list(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn list(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     LispCell::new_list(args.clone())
 }
 
@@ -93,7 +93,7 @@ pub fn dew(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     args.iter().map(|arg| exec(env, arg.clone())).last().unwrap()
 }
 
-pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn push(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [el, list_arg] => match *list_arg.borrow_mut() {
             LispCell::List(ref list) => {
@@ -107,7 +107,7 @@ pub fn push(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn car(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list_arg] => match *list_arg.borrow() {
             LispCell::List(ref list) => match list.borrow().get_value() {
@@ -120,7 +120,7 @@ pub fn car(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn cdr(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn cdr(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list] => match *list.borrow() {
             LispCell::List(ref list) => {
@@ -153,7 +153,7 @@ pub fn iff(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn eq(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn eq(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [left, right] => {
             let is_eq = left == right;
