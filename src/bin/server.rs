@@ -31,10 +31,22 @@ fn run_code(code: String) -> SubmitCodeResponse {
             output: res,
             success: true,
         },
-        Err(msg) => SubmitCodeResponse {
-            output: format!("{:?}", msg),
-            success: false,
-        },
+        Err(msg) => {
+            let msg = {
+                if let Some(msg) = msg.downcast_ref::<&'static str>() {
+                    format!("{:?}", msg)
+                } else if let Some(msg) = msg.downcast_ref::<String>() {
+                    format!("{:?}", msg)
+                } else {
+                    format!("{:?}", msg)
+                }
+            };
+
+            SubmitCodeResponse {
+                output: msg,
+                success: false,
+            }
+        }
     }
 }
 
@@ -49,7 +61,7 @@ fn submit_code_handler(req: &HttpRequest) -> Box<Future<Item = HttpResponse, Err
 }
 
 pub fn server(addr: String) {
-    print!("Starting server...");
+    println!("Starting server...");
 
     ::std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
@@ -59,6 +71,7 @@ pub fn server(addr: String) {
     server::new(|| {
         App::new()
             .middleware(middleware::Logger::default())
+            .middleware(middleware::cors::Cors::default())
             .resource("/submit-code", |r| r.method(http::Method::POST).f(submit_code_handler))
     }).bind(&addr)
     .unwrap()
