@@ -30,7 +30,7 @@ fn exec_rec(env: &mut Environment, cell: LispCellRef) -> LispCellRef {
 
             quoted.clone()
         }
-        LispCell::Number(_) => cell.clone(),
+        LispCell::Str(_) | LispCell::Number(_) => cell.clone(),
         LispCell::List(ref list) => {
             let (x, xs) = LispList::split(list.clone());
 

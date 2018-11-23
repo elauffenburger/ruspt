@@ -30,6 +30,7 @@ fn print_rec(node: LispCellRef, result: &mut String) {
         }
         LispCell::Number(num) => result.push_str(num.to_string().as_str()),
         LispCell::Atom(ref atom) => result.push_str(atom.as_str()),
+        LispCell::Str(ref string) => result.push_str(format!("\"{}\"", string).as_str()),
         LispCell::List(ref list) => {
             result.push('(');
 

@@ -3,6 +3,12 @@ use core::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[derive(Clone, Copy, Debug)]
+enum ParseMode {
+    Normal,
+    InStr,
+}
+
 pub fn parse(program: String) -> LispProgram {
     let mut trimmed_program = program.trim().to_string();
     log(|| println!("program: {}", &trimmed_program));
@@ -20,19 +26,27 @@ fn parse_init(program: &mut String) -> LispCellRef {
     log(|| println!("sanitized_program: {:?}", &sanitized_program));
 
     let mut results = vec![];
-    parse_rec(&mut sanitized_program, true, &mut vec![], &mut String::new(), &mut results, 0);
+    parse_rec(&mut sanitized_program, true, ParseMode::Normal, &mut vec![], &mut String::new(), &mut results, 0);
 
     log(|| println!("results: {:?}", &results));
 
     return results.pop().unwrap();
 }
 
-fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pending_word: &mut String, results: &mut Vec<LispCellRef>, depth: i32) {
+fn parse_rec(
+    text: &mut String,
+    greedy: bool,
+    mode: ParseMode,
+    list_stack: &mut Vec<char>,
+    pending_word: &mut String,
+    results: &mut Vec<LispCellRef>,
+    depth: i32,
+) {
     log(|| println!("{}results: {:?}", tab_to_depth(depth), &results));
 
     if text.is_empty() {
         if pending_word != "" {
-            parse_rec_finalize_word(text, false, list_stack, pending_word, results, depth);
+            parse_rec_finalize_word(text, false, mode, list_stack, pending_word, results, depth);
         }
 
         return;
@@ -42,20 +56,20 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
         ' ' | '\n' => {
             log(|| println!("{}in whitespace", tab_to_depth(depth)));
 
-            parse_rec_finalize_word(text, greedy, list_stack, pending_word, results, depth);
+            parse_rec_finalize_word(text, greedy, mode, list_stack, pending_word, results, depth);
         }
         '\'' => {
             log(|| println!("{}in '", tab_to_depth(depth)));
 
             let mut to_quote = vec![];
-            parse_rec(text, false, list_stack, &mut String::new(), &mut to_quote, depth);
+            parse_rec(text, false, mode, list_stack, &mut String::new(), &mut to_quote, depth);
 
             log(|| println!("{}to quote: {:?}", tab_to_depth(depth), &to_quote));
 
             results.push(Rc::new(RefCell::new(LispCell::Quoted(to_quote.pop().unwrap()))));
 
             if greedy {
-                parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
+                parse_rec(text, greedy, mode, list_stack, &mut String::new(), results, depth);
             }
         }
         '(' => {
@@ -66,14 +80,14 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             log(|| println!("{}Staring new results stack", tab_to_depth(depth)));
 
             let mut list_contents = vec![];
-            parse_rec(text, true, list_stack, &mut String::new(), &mut list_contents, depth + 1);
+            parse_rec(text, true, mode, list_stack, &mut String::new(), &mut list_contents, depth + 1);
 
             log(|| println!("{}Finished results stack: {:?}", tab_to_depth(depth), &list_contents));
 
             results.push(LispCell::new_list(list_contents));
 
             if greedy {
-                parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
+                parse_rec(text, greedy, mode, list_stack, &mut String::new(), results, depth);
             }
         }
         ')' => {
@@ -86,10 +100,16 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 
             list_stack.pop();
         }
-        '"' => {
-            // TODO: handle, you know, strings
-            panic!("Strings not supported yet!")
-        }
+        '"' => match mode {
+            ParseMode::InStr => {
+                results.push(LispCell::Str(pending_word.clone()).to_ref());
+
+                if greedy {
+                    parse_rec(text, greedy, ParseMode::Normal, list_stack, &mut String::from(""), results, depth)
+                }
+            }
+            _ => parse_rec(text, greedy, ParseMode::InStr, list_stack, pending_word, results, depth),
+        },
         c @ _ => {
             log(|| println!("{}c: {}", tab_to_depth(depth), &c));
 
@@ -97,7 +117,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
             pending_word.push(c);
 
             // ...either way, we just continue
-            parse_rec(text, greedy, list_stack, pending_word, results, depth)
+            parse_rec(text, greedy, mode, list_stack, pending_word, results, depth)
         }
     }
 }
@@ -105,6 +125,7 @@ fn parse_rec(text: &mut String, greedy: bool, list_stack: &mut Vec<char>, pendin
 fn parse_rec_finalize_word(
     text: &mut String,
     greedy: bool,
+    mode: ParseMode,
     list_stack: &mut Vec<char>,
     pending_word: &mut String,
     results: &mut Vec<LispCellRef>,
@@ -112,7 +133,7 @@ fn parse_rec_finalize_word(
 ) {
     // If there's no pending_word, just move onto the next char
     if pending_word == "" {
-        return parse_rec(text, greedy, list_stack, pending_word, results, depth);
+        return parse_rec(text, greedy, mode, list_stack, pending_word, results, depth);
     }
 
     log(|| println!("{}finalizing word: {}", tab_to_depth(depth), &pending_word));
@@ -128,7 +149,7 @@ fn parse_rec_finalize_word(
 
     if greedy {
         // Move onto the next char
-        parse_rec(text, greedy, list_stack, &mut String::new(), results, depth);
+        parse_rec(text, greedy, mode, list_stack, &mut String::new(), results, depth);
     }
 }
 
