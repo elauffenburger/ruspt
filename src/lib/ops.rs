@@ -76,7 +76,8 @@ pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
                     func_body: func_body.clone(),
                 });
 
-                let func = LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, func_executor)).to_ref();
+                let func =
+                    LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, func_executor)).to_ref();
 
                 env.def(func_name.clone(), func.clone());
 
@@ -161,6 +162,45 @@ pub fn eq(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
             Rc::new(RefCell::new(LispCell::Bool(is_eq)))
         }
         _ => panic!("Invalid arg num passed to if: {:?}", &args),
+    }
+}
+
+pub fn lambda(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    match args.as_slice() {
+        [lambda_args, lambda_body] => match (&*lambda_args.borrow(), &*lambda_body.borrow()) {
+            (LispCell::List(ref lambda_args), LispCell::List(_)) => {
+                log(|| println!("preparing to lambda {:?} {:?}", lambda_args, lambda_body));
+
+                let cloned_func_args = lambda_args.clone();
+
+                let arg_names: Vec<String> = LispList::to_vec(cloned_func_args)
+                    .iter()
+                    .map(|arg| {
+                        let unwrapped_arg = arg.clone();
+                        let borrowed_arg = unwrapped_arg.borrow();
+
+                        match *borrowed_arg {
+                            LispCell::Atom(ref name) => name.clone(),
+                            _ => panic!("Non-atom arg passed in func args list: {:?}", &lambda_args),
+                        }
+                    }).collect();
+
+                let func_name = String::from("lambda");
+
+                let func_executor = Box::new(DefnFuncExecutorImpl {
+                    name: func_name.clone(),
+                    arg_names: arg_names,
+                    func_body: lambda_body.clone(),
+                });
+
+                let func =
+                    LispCell::Func(LispFunc::new(func_name, LispFuncType::Normal, func_executor)).to_ref();
+
+                func
+            }
+            _ => panic!("Invalid args passed to lambda: {:?}", &args),
+        },
+        _ => panic!("Invalid arg num passed to lambda: {:?}", &args),
     }
 }
 

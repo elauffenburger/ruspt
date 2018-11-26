@@ -58,7 +58,10 @@ mod test {
             entry: Some(make_list(vec![
                 make_atom("print"),
                 make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
-                make_quoted(make_list(vec![make_num(1f32), make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)])])),
+                make_quoted(make_list(vec![
+                    make_num(1f32),
+                    make_list(vec![make_atom("+"), make_num(1f32), make_num(2f32)]),
+                ])),
                 make_list(vec![make_atom("-"), make_num(3f32), make_num(5f32)]),
             ])),
         };
@@ -132,6 +135,32 @@ mod test {
     #[test]
     fn basic_defn_with_args() {
         run_exec_test_literal("(do (def x 5) (defn foo (x) (+ x 1)) (foo x))", "6")
+    }
+
+    #[test]
+    fn basic_lambda() {
+        run_exec_test_literal("(do ((lambda () (* 3 2))))", "6")
+    }
+
+    #[test]
+    fn basic_lambda_with_args() {
+        run_exec_test_literal("(do ((lambda (x) (* x 3)) 3))", "9")
+    }
+
+    #[test]
+    fn basic_lambda_with_args_and_def() {
+        run_exec_test_literal("(do (def x (lambda (x) (* x 3))) (x 3))", "9")
+    }
+
+    #[test]
+    fn nested_env() {
+        run_exec_test_literal("(do (def x 3) (def f (lambda (y) (* x y))) (f 3))", "9")
+    }
+
+    // This test is going to fail until I implement a hierachical env structure (as in, defn et. al. should create a new env that links to the parent env and does not modify the parent env's defs)
+    #[test]
+    fn original_var_is_unaltered_by_shadow() {
+        run_exec_test_literal("(do (def x 3) (def f (lambda (x) (* x 2))) (+ (f 12) x)", "27")
     }
 
     fn run_exec_test_literal<'a, 'b>(prog_str: &'a str, expected_result_str: &'b str) {

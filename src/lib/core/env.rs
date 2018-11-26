@@ -46,6 +46,7 @@ impl Environment {
         Self::add_op("cdr", LispFuncType::Normal, Rc::new(ops::cdr), &mut map);
         Self::add_op("if", LispFuncType::SpecialForm, Rc::new(ops::iff), &mut map);
         Self::add_op("eq", LispFuncType::Normal, Rc::new(ops::eq), &mut map);
+        Self::add_op("lambda", LispFuncType::SpecialForm, Rc::new(ops::lambda), &mut map);
 
         map
     }
