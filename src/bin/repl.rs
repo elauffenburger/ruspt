@@ -1,11 +1,14 @@
-use rusptlib::{exec_prog, parse, Environment};
 use std::env;
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::io::{self, Write};
+
+use rusptlib::{exec_prog, parse, Environment};
 
 pub fn repl() {
     println!("Welcome to ruspt!");
 
-    let mut env = Environment::new();
+    let mut env = Rc::new(RefCell::new(Environment::new()));
 
     loop {
         print!("> ");
@@ -15,7 +18,7 @@ pub fn repl() {
         io::stdin().read_line(&mut buffer).unwrap();
 
         let program = parse(buffer);
-        let result = exec_prog(&mut env, program);
+        let result = exec_prog(env.clone(), program);
 
         println!("{:?}", result);
     }

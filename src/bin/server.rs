@@ -1,4 +1,6 @@
 use std::panic;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use actix_web::{http, middleware, server, App, AsyncResponder, Error, HttpMessage, HttpRequest, HttpResponse};
 use futures::Future;
@@ -18,10 +20,10 @@ struct SubmitCodeResponse {
 
 fn run_code(code: String) -> SubmitCodeResponse {
     let exec_result = panic::catch_unwind(|| {
-        let mut env = rusptlib::Environment::new();
+        let mut env = Rc::new(RefCell::new(rusptlib::Environment::new()));
         let program = rusptlib::parse(code);
 
-        let result = rusptlib::exec_prog(&mut env, program);
+        let result = rusptlib::exec_prog(env, program);
 
         rusptlib::print_cell(result)
     });

@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct Environment {
-    pub symbols: HashMap<String, Rc<RefCell<LispCell>>>,
+    pub parent: Option<Rc<RefCell<Environment>>>,
+    pub symbols: HashMap<String, LispCellRef>,
 }
 
 impl Environment {
@@ -26,7 +27,15 @@ impl Environment {
 
     pub fn new() -> Environment {
         Environment {
+            parent: None,
             symbols: Self::make_builtin_symbols(),
+        }
+    }
+
+    pub fn new_child(env: Rc<RefCell<Environment>>) -> Environment {
+        Environment {
+            parent: Some(env.clone()),
+            symbols: env.borrow().symbols.clone(),
         }
     }
 
@@ -51,7 +60,12 @@ impl Environment {
         map
     }
 
-    fn add_op(name: &'static str, func_type: LispFuncType, op: Rc<LispFn>, map: &mut HashMap<String, Rc<RefCell<LispCell>>>) {
+    fn add_op(
+        name: &'static str,
+        func_type: LispFuncType,
+        op: Rc<LispFn>,
+        map: &mut HashMap<String, Rc<RefCell<LispCell>>>,
+    ) {
         map.insert(
             name.to_string(),
             Rc::new(RefCell::new(LispCell::Func(LispFunc {
@@ -69,18 +83,19 @@ impl Clone for Environment {
     fn clone(&self) -> Self {
         Environment {
             symbols: self.symbols.clone(),
+            parent: self.parent.clone()
         }
     }
 }
 
-type LispFn = Fn(&mut Environment, &Vec<LispCellRef>) -> LispCellRef;
+type LispFn = Fn(Rc<RefCell<Environment>>, &Vec<LispCellRef>) -> LispCellRef;
 
 struct FnLispFuncExecutor {
     op: Rc<LispFn>,
 }
 
 impl LispFuncExecutor for FnLispFuncExecutor {
-    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    fn exec(&self, env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
         (self.op)(env, args)
     }
 }

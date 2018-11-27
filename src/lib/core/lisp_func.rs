@@ -17,7 +17,7 @@ impl LispFunc {
 }
 
 pub trait LispFuncExecutor {
-    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef;
+    fn exec(&self, env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef;
 }
 
 #[derive(Debug, Clone, PartialEq)]

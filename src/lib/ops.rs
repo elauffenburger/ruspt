@@ -4,43 +4,43 @@ use std::rc::Rc;
 use super::core::{self, log};
 use super::{exec, Environment, LispCell, LispCellRef, LispFunc, LispFuncExecutor, LispFuncType, LispList};
 
-pub fn add(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn add(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     Rc::new(RefCell::new(LispCell::Number(to_nums(args).sum())))
 }
 
-pub fn sub(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn sub(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
     LispCell::Number(nums.fold(first, |acc, val| acc - val)).to_ref()
 }
 
-pub fn mul(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn mul(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     LispCell::Number(to_nums(args).product()).to_ref()
 }
 
-pub fn div(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn div(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut nums = to_nums(args);
     let first = nums.next().unwrap();
 
     LispCell::Number(nums.fold(first, |acc, val| acc / val)).to_ref()
 }
 
-pub fn list(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn list(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     LispCell::new_list(args.clone())
 }
 
-pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn def(env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     let mut iter = args.iter();
 
     let cell = iter.next().unwrap();
     match *cell.borrow() {
         LispCell::Atom(ref symbol) => {
-            let value = exec(env, iter.next().unwrap().clone());
+            let value = exec(env.clone(), iter.next().unwrap().clone());
 
             log(|| println!("Defining symbol: {:?} with value: {:?}", symbol, value));
 
-            env.def(symbol.clone(), value);
+            env.borrow_mut().def(symbol.clone(), value);
 
             log(|| println!("Symbol {:?} defined", symbol));
 
@@ -50,7 +50,7 @@ pub fn def(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn defn(env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [arg1, arg2, arg3] => match (&*arg1.borrow(), &*arg2.borrow(), arg3) {
             (LispCell::Atom(ref func_name), LispCell::List(ref func_args), func_body) => {
@@ -74,12 +74,13 @@ pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
                     name: func_name.clone(),
                     arg_names: arg_names,
                     func_body: func_body.clone(),
+                    env: None,
                 });
 
                 let func =
                     LispCell::Func(LispFunc::new(func_name.clone(), LispFuncType::Normal, func_executor)).to_ref();
 
-                env.def(func_name.clone(), func.clone());
+                env.borrow_mut().def(func_name.clone(), func.clone());
 
                 func
             }
@@ -89,12 +90,12 @@ pub fn defn(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn dew(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn dew(env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     // Execute each arg in the vec and return the last expr result as the result
-    args.iter().map(|arg| exec(env, arg.clone())).last().unwrap()
+    args.iter().map(|arg| exec(env.clone(), arg.clone())).last().unwrap()
 }
 
-pub fn push(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn push(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [el, list_arg] => match *list_arg.borrow_mut() {
             LispCell::List(ref list) => {
@@ -108,7 +109,7 @@ pub fn push(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn car(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn car(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list_arg] => match *list_arg.borrow() {
             LispCell::List(ref list) => match list.borrow().get_value() {
@@ -121,7 +122,7 @@ pub fn car(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn cdr(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn cdr(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [list] => match *list.borrow() {
             LispCell::List(ref list) => {
@@ -138,15 +139,15 @@ pub fn cdr(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn iff(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn iff(env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [pred, true_case, false_case] => {
-            let pred_result = exec(env, pred.clone());
+            let pred_result = exec(env.clone(), pred.clone());
             let borrowed_pred_result = pred_result.borrow();
 
             match *borrowed_pred_result {
-                LispCell::Bool(true) => exec(env, true_case.clone()),
-                LispCell::Bool(false) => exec(env, false_case.clone()),
+                LispCell::Bool(true) => exec(env.clone(), true_case.clone()),
+                LispCell::Bool(false) => exec(env.clone(), false_case.clone()),
                 ref r @ _ => panic!("Invalid result returned by if predicate: {:?}", r),
             }
         }
@@ -154,7 +155,7 @@ pub fn iff(env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn eq(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn eq(_env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [left, right] => {
             let is_eq = left == right;
@@ -165,7 +166,7 @@ pub fn eq(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
     }
 }
 
-pub fn lambda(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+pub fn lambda(env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
     match args.as_slice() {
         [lambda_args, lambda_body] => match (&*lambda_args.borrow(), &*lambda_body.borrow()) {
             (LispCell::List(ref lambda_args), LispCell::List(_)) => {
@@ -191,10 +192,10 @@ pub fn lambda(_env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
                     name: func_name.clone(),
                     arg_names: arg_names,
                     func_body: lambda_body.clone(),
+                    env: Some(Rc::new(RefCell::new(Environment::new_child(env)))),
                 });
 
-                let func =
-                    LispCell::Func(LispFunc::new(func_name, LispFuncType::Normal, func_executor)).to_ref();
+                let func = LispCell::Func(LispFunc::new(func_name, LispFuncType::Normal, func_executor)).to_ref();
 
                 func
             }
@@ -217,11 +218,17 @@ struct DefnFuncExecutorImpl {
     name: String,
     func_body: LispCellRef,
     arg_names: Vec<String>,
+    env: Option<Rc<RefCell<Environment>>>,
 }
 
 impl LispFuncExecutor for DefnFuncExecutorImpl {
-    fn exec(&self, env: &mut Environment, args: &Vec<LispCellRef>) -> LispCellRef {
+    fn exec(&self, env: Rc<RefCell<Environment>>, args: &Vec<LispCellRef>) -> LispCellRef {
         log(|| println!("exec'ing {}", &self.name));
+
+        let env = match self.env {
+            Some(ref env) => env.clone(),
+            None => env,
+        };
 
         {
             let n = args.len();
@@ -233,7 +240,7 @@ impl LispFuncExecutor for DefnFuncExecutorImpl {
 
             let mut i = 0;
             self.arg_names.iter().for_each(|name| {
-                env.def(name.clone(), args[i].clone());
+                env.borrow_mut().def(name.clone(), args[i].clone());
                 i += 1;
             });
         }

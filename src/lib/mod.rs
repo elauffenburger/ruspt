@@ -13,6 +13,9 @@ pub use util::*;
 
 #[cfg(test)]
 mod test {
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     use print::print_cell;
 
     use super::core::{Environment, LispCellRef, LispProgram};
@@ -157,7 +160,6 @@ mod test {
         run_exec_test_literal("(do (def x 3) (def f (lambda (y) (* x y))) (f 3))", "9")
     }
 
-    // This test is going to fail until I implement a hierachical env structure (as in, defn et. al. should create a new env that links to the parent env and does not modify the parent env's defs)
     #[test]
     fn original_var_is_unaltered_by_shadow() {
         run_exec_test_literal("(do (def x 3) (def f (lambda (x) (* x 2))) (+ (f 12) x)", "27")
@@ -172,8 +174,8 @@ mod test {
     fn run_exec_test<'a>(prog_str: &'a str, expected_result: LispCellRef) {
         let program = parse(prog_str.to_string());
 
-        let mut env = Environment::new();
-        let result = exec_prog(&mut env, program);
+        let mut env = Rc::new(RefCell::new(Environment::new()));
+        let result = exec_prog(env, program);
         println!("result: {:?}", &result);
         println!("pretty result: {:?}", print_cell(result.clone()));
 
